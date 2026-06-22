@@ -40,9 +40,9 @@ Sistem monitoring CCTV dengan admin panel Filament untuk mengelola camera (activ
 
 ### Non-Functional
 
-- Laravel 11.x
-- Filament 3.x
-- SQLite for development, MySQL/PostgreSQL for production
+- Laravel 13.x
+- Filament 5.x
+- SQLite for development, PostgreSQL for production
 - Static frontend assets (Vite)
 
 ## Architecture
@@ -70,27 +70,27 @@ Sistem monitoring CCTV dengan admin panel Filament untuk mengelola camera (activ
 
 ### cameras
 
-| Column     | Type         | Notes                    |
-|------------|--------------|--------------------------|
-| id         | bigint       | PK, auto-increment       |
-| name       | string       | Camera display name      |
-| stream_url | string       | HLS stream URL           |
-| category_id| bigint       | FK → categories.id       |
-| location   | string       | Location text            |
-| status     | enum         | online, offline          |
-| order      | integer      | Display order (lower = first), default 0 |
-| created_at | timestamp    |                          |
-| updated_at | timestamp    |                          |
+| Column      | Type      | Notes                                    |
+| ----------- | --------- | ---------------------------------------- |
+| id          | bigint    | PK, auto-increment                       |
+| name        | string    | Camera display name                      |
+| stream_url  | string    | HLS stream URL                           |
+| category_id | bigint    | FK → categories.id                       |
+| location    | string    | Location text                            |
+| status      | enum      | online, offline                          |
+| order       | integer   | Display order (lower = first), default 0 |
+| created_at  | timestamp |                                          |
+| updated_at  | timestamp |                                          |
 
 ### categories
 
-| Column     | Type         | Notes                    |
-|------------|--------------|--------------------------|
-| id         | bigint       | PK, auto-increment       |
-| name       | string       | Category name            |
-| slug       | string       | URL-safe, auto-generated |
-| created_at | timestamp    |                          |
-| updated_at | timestamp    |                          |
+| Column     | Type      | Notes                    |
+| ---------- | --------- | ------------------------ |
+| id         | bigint    | PK, auto-increment       |
+| name       | string    | Category name            |
+| slug       | string    | URL-safe, auto-generated |
+| created_at | timestamp |                          |
+| updated_at | timestamp |                          |
 
 ### users
 
@@ -120,7 +120,8 @@ File: `storage/app/public/cameras.json`
 ```
 
 Note: `category` field in cameras array = category slug (resolved from category_id relation).
-```
+
+````
 
 ## Filament Resources
 
@@ -169,7 +170,7 @@ public function deleted(Camera $camera): void
 {
     (new CameraExport)->handle();
 }
-```
+````
 
 ### CategoryObserver
 
@@ -219,6 +220,7 @@ class MonitoringController extends Controller
 ### Blade View
 
 Port existing `index.html` template into `resources/views/monitoring.blade.php`:
+
 - Replace `const CAMERAS = [...]` with `@json($cameras)`
 - Replace `const CATEGORIES = [...]` with `@json($categories)`
 - Keep existing CSS/JS structure
