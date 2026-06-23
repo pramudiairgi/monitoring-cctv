@@ -17,6 +17,7 @@ class CameraExport
                 'id' => $camera->id,
                 'name' => $camera->name,
                 'stream_url' => $camera->stream_url,
+                'adaptive_url' => $camera->adaptive_url,
                 'category' => $camera->category->slug ?? '',
                 'status' => $camera->status,
             ]);

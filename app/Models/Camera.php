@@ -13,6 +13,7 @@ class Camera extends Model
     protected $fillable = [
         'name',
         'stream_url',
+        'adaptive_url',
         'category_id',
         'status',
         'order',

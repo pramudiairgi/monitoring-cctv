@@ -1,10 +1,13 @@
 <?php
 
 use App\Http\Controllers\MonitoringController;
+use App\Http\Controllers\TelemetryController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 
 Route::get('/', [MonitoringController::class, 'index']);
+
+Route::post('/api/telemetry', [TelemetryController::class, 'store']);
 
 Route::get('/up', function () {
     try {
