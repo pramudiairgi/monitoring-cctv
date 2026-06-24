@@ -2,14 +2,17 @@ import Hls from 'hls.js';
 
 const RECONNECT_DELAYS = [2000, 4000, 8000];
 const RECONNECT_MAX = 3;
+const STALE_TIMEOUT = 60000;
 
 export default class StreamManager {
-  constructor(cameraId, videoElement, streamUrl, adaptiveUrl, telemetry) {
+  constructor(cameraId, videoElement, streamUrl, adaptiveUrl, telemetry, onOffline) {
     this.cameraId = cameraId;
     this.video = videoElement;
     this.streamUrl = streamUrl;
     this.adaptiveUrl = adaptiveUrl || null;
+    this._adaptiveReady = false;
     this.telemetry = telemetry || null;
+    this._onOffline = onOffline || null;
     this.hls = null;
     this.reconnectAttempts = 0;
     this.reconnectTimer = null;
@@ -18,6 +21,8 @@ export default class StreamManager {
     this.bufferingStart = 0;
     this.currentBitrate = 0;
     this.currentLevel = -1;
+    this._lastFragTime = 0;
+    this._staleTimer = null;
     this.placeholder = this.video?.closest('.camera-cell')
       ?.querySelector('.camera-placeholder');
   }
@@ -25,15 +30,15 @@ export default class StreamManager {
   getConfig() {
     return {
       enableWorker: true,
-      lowLatencyMode: true,
-      liveSyncDuration: 3,
-      liveMaxLatencyDuration: 6,
-      maxBufferLength: 15,
-      maxMaxBufferLength: 30,
+      lowLatencyMode: false,
+      liveSyncDuration: 15,
+      liveMaxLatencyDuration: 30,
+      maxBufferLength: 60,
+      maxMaxBufferLength: 120,
+      backbufferLength: 30,
+      startFragPrefetch: true,
       startLevel: -1,
       abrEwmaDefaultEstimate: 500000,
-      abrBandwidthUpFactor: 0.7,
-      abrBandwidthDownFactor: 0.4,
       capLevelToPlayerSize: true,
     };
   }
@@ -41,7 +46,7 @@ export default class StreamManager {
   attachMedia() {
     if (this.destroyed || !this.video) return;
 
-    const url = this.adaptiveUrl || this.streamUrl;
+    const url = (this._adaptiveReady && this.adaptiveUrl) ? this.adaptiveUrl : this.streamUrl;
 
     if (Hls.isSupported()) {
       this.hls = new Hls(this.getConfig());
@@ -61,7 +66,13 @@ export default class StreamManager {
       this.hidePlaceholder();
       this.video.play().catch(() => {});
       this.startTime = Date.now();
+      this._lastFragTime = Date.now();
+      this.startStaleCheck();
       this.track('play');
+    });
+
+    this.hls.on(Hls.Events.FRAG_LOADED, () => {
+      this._lastFragTime = Date.now();
     });
 
     this.hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
@@ -141,13 +152,43 @@ export default class StreamManager {
     });
   }
 
+  startStaleCheck() {
+    this.stopStaleCheck();
+    this._staleTimer = setInterval(() => {
+      if (this.destroyed) return;
+      if (this._lastFragTime === 0) return;
+      const elapsed = Date.now() - this._lastFragTime;
+      if (elapsed > STALE_TIMEOUT) {
+        this.track('error', { error_message: 'stream ended - no fragments' });
+        this.markOffline();
+      }
+    }, 15000);
+  }
+
+  stopStaleCheck() {
+    if (this._staleTimer) {
+      clearInterval(this._staleTimer);
+      this._staleTimer = null;
+    }
+  }
+
+  markOffline() {
+    this.destroyHls();
+    this.stopStaleCheck();
+    if (this._onOffline) {
+      this._onOffline(this.cameraId);
+    }
+  }
+
   attemptReconnect() {
     if (this.destroyed) return;
     if (this.reconnectAttempts >= RECONNECT_MAX) {
       this.showMessage('Stream unavailable');
+      this.markOffline();
       return;
     }
 
+    this.stopStaleCheck();
     this.destroyHls();
 
     const delay = RECONNECT_DELAYS[this.reconnectAttempts];
@@ -173,9 +214,35 @@ export default class StreamManager {
     }
   }
 
+  setAdaptiveReady(ready) {
+    this._adaptiveReady = ready;
+  }
+
+  upgradeToAdaptive(adaptiveUrl) {
+    if (!this.hls || this.destroyed) return;
+    if (!Hls.isSupported()) return;
+
+    const currentUrl = this.hls.url;
+    if (currentUrl === adaptiveUrl) return;
+
+    this._adaptiveReady = true;
+
+    this.track('level_switch', {
+      error_message: `upgrading to adaptive: ${adaptiveUrl}`,
+    });
+
+    this.destroyHls();
+    this.reconnectAttempts = 0;
+    this.hls = new Hls(this.getConfig());
+    this.hls.loadSource(adaptiveUrl);
+    this.hls.attachMedia(this.video);
+    this.bindHlsEvents();
+  }
+
   destroy() {
     this.destroyed = true;
     clearTimeout(this.reconnectTimer);
+    this.stopStaleCheck();
     this.destroyHls();
   }
 
@@ -187,7 +254,12 @@ export default class StreamManager {
 
   showMessage(text) {
     if (this.placeholder) {
-      this.placeholder.textContent = text;
+      const textEl = this.placeholder.querySelector('.placeholder-text');
+      if (textEl) {
+        textEl.textContent = text;
+      } else {
+        this.placeholder.textContent = text;
+      }
     }
   }
 

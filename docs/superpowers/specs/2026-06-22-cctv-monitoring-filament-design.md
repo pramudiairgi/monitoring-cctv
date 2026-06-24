@@ -13,30 +13,30 @@ Sistem monitoring CCTV dengan admin panel Filament untuk mengelola camera (activ
 ### Functional
 
 1. **Camera Management (Filament)**
-   - CRUD cameras: name, stream_url, category, location, status
-   - Toggle status online/offline (activate/deactivate)
-   - Table view with category relation, status badge, search, filter
+    - CRUD cameras: name, stream_url, category, location, status
+    - Toggle status online/offline (activate/deactivate)
+    - Table view with category relation, status badge, search, filter
 
 2. **Category Management (Filament)**
-   - CRUD categories: name, slug (auto-generated)
-   - Show camera count per category
+    - CRUD categories: name, slug (auto-generated)
+    - Show camera count per category
 
 3. **Auto JSON Export**
-   - Generate `storage/app/public/cameras.json` on every Camera/Category save or delete
-   - Structure: `{ cameras: [...], categories: [...] }`
-   - Manual export command: `php artisan cameras:export`
+    - Generate `storage/app/public/cameras.json` on every Camera/Category save or delete
+    - Structure: `{ cameras: [...], categories: [...] }`
+    - Manual export command: `php artisan cameras:export`
 
 4. **Frontend Monitoring Page**
-   - Route `GET /` — reads from `cameras.json`
-   - HLS playback via hls.js CDN
-   - Fullscreen on click (CSS position: fixed)
-   - Filters: search, category, status
-   - Auto-hide navbar after 3s
-   - Responsive: 4 columns desktop, 2 mobile
+    - Route `GET /` — reads from `cameras.json`
+    - HLS playback via hls.js CDN
+    - Fullscreen on click (CSS position: fixed)
+    - Filters: search, category, status
+    - Auto-hide navbar after 2s
+    - Responsive: 4 columns desktop, 2 mobile
 
 5. **Auth**
-   - Simple email + password (Filament default)
-   - Seeded admin user via `php artisan make:filament-user`
+    - Simple email + password (Filament default)
+    - Seeded admin user via `php artisan make:filament-user`
 
 ### Non-Functional
 
@@ -102,20 +102,20 @@ File: `storage/app/public/cameras.json`
 
 ```json
 {
-  "cameras": [
-    {
-      "id": 1,
-      "name": "CCTV - TUGUMUDA",
-      "stream_url": "https://livepantau.semarangkota.go.id/...",
-      "category": "traffic",
-      "location": "Barusari, Semarang",
-      "status": "online"
-    }
-  ],
-  "categories": [
-    { "value": "traffic", "label": "Traffic" },
-    { "value": "public_facility", "label": "Public Facility" }
-  ]
+    "cameras": [
+        {
+            "id": 1,
+            "name": "CCTV - TUGUMUDA",
+            "stream_url": "https://livepantau.semarangkota.go.id/...",
+            "category": "traffic",
+            "location": "Barusari, Semarang",
+            "status": "online"
+        }
+    ],
+    "categories": [
+        { "value": "traffic", "label": "Traffic" },
+        { "value": "public_facility", "label": "Public Facility" }
+    ]
 }
 ```
 

@@ -88,6 +88,10 @@ class CameraResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->groups([
+                'category.name',
+                'status',
+            ])
             ->defaultGroup('category.name')
             ->filters([
                 //

@@ -11,10 +11,8 @@ class DatabaseSeeder extends Seeder
     {
         $categories = [
             ['name' => 'Traffic', 'slug' => 'traffic'],
-            ['name' => 'Public Facility', 'slug' => 'public_facility'],
-            ['name' => 'Disaster', 'slug' => 'disaster'],
-            ['name' => 'Security', 'slug' => 'security'],
-            ['name' => 'Environment', 'slug' => 'environment'],
+            ['name' => 'Patroli', 'slug' => 'patroli'],
+            ['name' => 'Public Facility', 'slug' => 'public_facility']
         ];
 
         foreach ($categories as $cat) {
