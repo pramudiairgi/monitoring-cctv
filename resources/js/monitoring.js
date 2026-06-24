@@ -4,8 +4,10 @@ const CAMERAS = DATA_SCRIPT ? JSON.parse(DATA_SCRIPT.textContent) : [];
 const NAVBAR_HIDE_DELAY = 3000;
 const NAVBAR_HIDE_DELAY_GRID = 5000;
 const TELEMETRY_ENDPOINT = '/api/telemetry';
-const TELEMETRY_FLUSH_INTERVAL = 30000;
-const TELEMETRY_FLUSH_THRESHOLD = 10;
+const TELEMETRY_FLUSH_INTERVAL = 60000;
+const TELEMETRY_FLUSH_THRESHOLD = 20;
+const MAX_PROBE_RETRIES = 3;
+const PROBE_COOLDOWN_MS = 60000;
 
 let cameras = CAMERAS;
 let searchQuery = '';
@@ -17,6 +19,7 @@ let streamManagers = new Map();
 let observer = null;
 
 const grid = document.getElementById('camera-grid');
+const cameraNames = new Map(cameras.map(c => [c.id, c.name]));
 const searchInput = document.getElementById('search');
 const categoryFilter = document.getElementById('category-filter');
 const statusFilter = document.getElementById('status-filter');
@@ -37,7 +40,7 @@ const telemetry = {
   track(data) {
     const payload = {
       ...data,
-      camera_name: cameras.find(c => c.id === data.camera_id)?.name || null,
+      camera_name: cameraNames.get(data.camera_id) || null,
       user_agent: navigator.userAgent,
       timestamp: Date.now(),
     };
@@ -47,18 +50,15 @@ const telemetry = {
     }
   },
 
-  flush(useBeacon = false) {
+  flush() {
     if (this.queue.length === 0) return;
     const batch = this.queue.splice(0, this.queue.length);
-    const body = JSON.stringify(batch);
-
-    if (useBeacon && navigator.sendBeacon) {
-      navigator.sendBeacon(TELEMETRY_ENDPOINT, body);
-    } else {
+    const blob = new Blob([JSON.stringify(batch)], { type: 'application/json' });
+    if (!navigator.sendBeacon(TELEMETRY_ENDPOINT, blob)) {
       fetch(TELEMETRY_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body,
+        body: JSON.stringify(batch),
         keepalive: true,
       }).catch(() => {});
     }
@@ -237,23 +237,27 @@ async function initStream(cell, camera) {
 
   if (streamManagers.has(camera.id)) return;
 
-  const { default: StreamManager } = await import('./stream-manager.js');
+  const stagger = (camera.id * 137.5 + Math.random() * 500) % 2000;
 
-  const manager = new StreamManager(
-    camera.id,
-    video,
-    camera.stream_url,
-    camera.adaptive_url,
-    telemetry,
-    onStreamEnded,
-  );
+  setTimeout(async () => {
+    const { default: StreamManager } = await import('./stream-manager.js');
 
-  if (camera._adaptive_ready) {
-    manager.setAdaptiveReady(true);
-  }
+    const manager = new StreamManager(
+      camera.id,
+      video,
+      camera.stream_url,
+      camera.adaptive_url,
+      telemetry,
+      onStreamEnded,
+    );
 
-  manager.attachMedia();
-  streamManagers.set(camera.id, manager);
+    if (camera._adaptive_ready) {
+      manager.setAdaptiveReady(true);
+    }
+
+    manager.attachMedia();
+    streamManagers.set(camera.id, manager);
+  }, stagger);
 }
 
 function scheduleAdaptiveRecheck() {
@@ -283,13 +287,33 @@ function scheduleAdaptiveRecheck() {
 }
 
 async function probeSingleCamera(camera) {
+  if (camera._probeRetries === undefined) camera._probeRetries = 0;
+
   try {
     const res = await fetch(camera.stream_url, {
       method: 'GET',
+      priority: 'low',
       signal: AbortSignal.timeout(5000),
     });
 
-    if (res.ok && !camera._reachable) {
+    if (!res.ok) {
+      camera._probeRetries++;
+      if (camera._probeRetries >= MAX_PROBE_RETRIES) {
+        camera._probeState = 'cooldown';
+        camera._nextProbeTime = Date.now() + PROBE_COOLDOWN_MS;
+        console.warn(`[ProbeCooldown] Camera ${camera.id} — ${MAX_PROBE_RETRIES} failures, next probe in ${PROBE_COOLDOWN_MS / 1000}s`);
+      }
+      return;
+    }
+
+    if (camera._probeState === 'cooldown') {
+      console.log(`[ProbeCooldown] Camera ${camera.id} — recovered, resuming normal polling`);
+    }
+
+    camera._probeRetries = 0;
+    camera._probeState = 'active';
+
+    if (!camera._reachable) {
       camera._reachable = true;
 
       const cell = document.querySelector(`.camera-cell[data-id="${camera.id}"]`);
@@ -302,24 +326,32 @@ async function probeSingleCamera(camera) {
 
       updateBadge(cell, 'online');
 
-      await initStream(cell, camera);
+      initStream(cell, camera);
       applyFilters();
     }
   } catch {
-    /* masih offline */
+    camera._probeRetries++;
+    if (camera._probeRetries >= MAX_PROBE_RETRIES) {
+      camera._probeState = 'cooldown';
+      camera._nextProbeTime = Date.now() + PROBE_COOLDOWN_MS;
+      console.warn(`[ProbeCooldown] Camera ${camera.id} — ${MAX_PROBE_RETRIES} consecutive failures, next probe in ${PROBE_COOLDOWN_MS / 1000}s`);
+    }
   }
 }
 
 function probeOfflineCameras() {
+  if (document.hidden) return;
   for (const camera of cameras) {
     if (camera._reachable) continue;
+    if (camera._probeState === 'cooldown' && Date.now() < camera._nextProbeTime) continue;
     probeSingleCamera(camera);
   }
 }
 
 async function refreshCameraData() {
+  if (document.hidden) return;
   try {
-    const res = await fetch('/cameras.json');
+    const res = await fetch('/cameras.json', { priority: 'low' });
     if (!res.ok) return;
     const data = await res.json();
     const newCameras = data.cameras;
@@ -332,6 +364,11 @@ async function refreshCameraData() {
 
       if (newCam.status === 'online' && oldCam._reachable === undefined) {
         oldCam._reachable = true;
+      }
+
+      if (newCam.status === 'online') {
+        oldCam._probeRetries = 0;
+        oldCam._probeState = 'active';
       }
 
       const cell = document.querySelector(`.camera-cell[data-id="${newCam.id}"]`);

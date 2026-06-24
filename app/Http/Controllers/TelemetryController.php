@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\StreamTelemetry;
+use App\Jobs\ProcessTelemetryJob;
 use Illuminate\Http\Request;
 
 class TelemetryController extends Controller
@@ -17,6 +17,7 @@ class TelemetryController extends Controller
             'buffer_health', 'latency_ms', 'event_type', 'error_message', 'user_agent',
         ];
 
+        $now = now();
         $records = [];
         foreach ($events as $event) {
             $data = validator($event, [
@@ -36,11 +37,13 @@ class TelemetryController extends Controller
             foreach ($fields as $f) {
                 $row[$f] = $data[$f] ?? null;
             }
+            $row['created_at'] = $now;
+            $row['updated_at'] = $now;
             $records[] = $row;
         }
 
         if (!empty($records)) {
-            StreamTelemetry::insert($records);
+            ProcessTelemetryJob::dispatch($records);
         }
 
         return response()->noContent();

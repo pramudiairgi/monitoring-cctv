@@ -24,7 +24,7 @@ Route::get('/cameras.json', function (CameraExport $export) {
         return response()->json(['cameras' => [], 'categories' => []], 404);
     }
     return response()->json(json_decode(File::get($path), true), 200, [
-        'Cache-Control' => 'no-cache',
+        'Cache-Control' => 'public, max-age=60',
     ]);
 });
 

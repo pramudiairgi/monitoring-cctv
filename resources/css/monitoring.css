@@ -137,28 +137,30 @@ body {
     cursor: pointer;
     min-height: 120px;
     -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
-    transition: border-color var(--duration-fast) var(--easing-default);
+    box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+    transition: box-shadow var(--duration-fast) var(--easing-default);
+    contain: layout style paint;
 }
 
 .camera-cell[data-status="online"] {
-    border-color: rgba(52, 199, 89, 0.12);
+    box-shadow: 0 0 0 0.5px rgba(52, 199, 89, 0.12);
 }
 
 .camera-cell[data-status="offline"] {
-    border-color: rgba(255, 59, 48, 0.08);
+    box-shadow: 0 0 0 0.5px rgba(255, 59, 48, 0.08);
 }
 
 .camera-cell:hover {
-    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.2);
     z-index: 1;
 }
 
 .camera-cell[data-status="online"]:hover {
-    border-color: rgba(52, 199, 89, 0.3);
+    box-shadow: 0 0 0 0.5px rgba(52, 199, 89, 0.3);
 }
 
 .camera-cell[data-status="offline"]:hover {
-    border-color: rgba(255, 59, 48, 0.2);
+    box-shadow: 0 0 0 0.5px rgba(255, 59, 48, 0.2);
 }
 
 .camera-cell video {

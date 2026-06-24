@@ -1,8 +1,8 @@
 import Hls from 'hls.js';
 
-const RECONNECT_DELAYS = [2000, 4000, 8000];
-const RECONNECT_MAX = 3;
-const STALE_TIMEOUT = 60000;
+const RECONNECT_DELAYS = [2000, 4000, 8000, 15000, 30000];
+const RECONNECT_MAX = 5;
+const STALE_TIMEOUT = 20000;
 
 export default class StreamManager {
   constructor(cameraId, videoElement, streamUrl, adaptiveUrl, telemetry, onOffline) {
@@ -23,23 +23,40 @@ export default class StreamManager {
     this.currentLevel = -1;
     this._lastFragTime = 0;
     this._staleTimer = null;
+    this._subPlaylistRetries = 0;
     this.placeholder = this.video?.closest('.camera-cell')
       ?.querySelector('.camera-placeholder');
+    if (this.video) {
+      this.video.style.transform = 'translateZ(0)';
+    }
   }
 
   getConfig() {
     return {
       enableWorker: true,
       lowLatencyMode: false,
-      liveSyncDuration: 15,
-      liveMaxLatencyDuration: 30,
-      maxBufferLength: 60,
-      maxMaxBufferLength: 120,
-      backbufferLength: 30,
-      startFragPrefetch: true,
-      startLevel: -1,
-      abrEwmaDefaultEstimate: 500000,
+      useFetch: false,   // XHR for HLS segments; priority:'low' on probes only affects fetch-based requests
+      liveSyncDuration: 8,
+      liveMaxLatencyDuration: 16,
+      maxBufferLength: 5,
+      maxMaxBufferLength: 10,
+      backbufferLength: 3,
+      startFragPrefetch: false,
+      startLevel: 0,
+      abrEwmaDefaultEstimate: 300000,
+      abrEwmaFastVoD: 3.0,
+      abrEwmaSlowVoD: 5.0,
+      abrBandWidthFactor: 0.8,
+      abrBandWidthUpFactor: 0.7,
       capLevelToPlayerSize: true,
+      capLevelOnFPSDrop: true,
+      renderNudge: true,
+      maxStarvationDelay: 10,
+      starvationDelay: 6,
+      nudgeOffset: 0.5,
+      enableSoftNudge: true,
+      fragLoadingTimeOut: 10000,
+      liveDurationInfinity: true,
     };
   }
 
@@ -89,11 +106,43 @@ export default class StreamManager {
 
     this.hls.on(Hls.Events.ERROR, (_, data) => {
       if (data.fatal) {
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR && data.details === 'bufferStalledError') {
+          const next = Math.max(0, (this.currentLevel || 0) - 1);
+          this.hls.currentLevel = next;
+          this.track('error', {
+            error_message: `bufferStalledError — switching to level ${next}`,
+          });
+          return;
+        }
         this.track('error', {
           error_message: `${data.type}:${data.details}`,
         });
         this.attemptReconnect();
       } else {
+        if (data.details === 'levelLoadError' && data.response?.code === 404) {
+          this._subPlaylistRetries++;
+          if (this._subPlaylistRetries >= 3) {
+            this.track('error', {
+              error_message: 'sub-playlist 404 — marking offline',
+            });
+            this.markOffline();
+            return;
+          }
+          this.track('error', {
+            error_message: `sub-playlist 404 — reloading (${this._subPlaylistRetries}/3)`,
+          });
+          setTimeout(() => {
+            if (!this.destroyed && this.hls) {
+              const url = this.hls.url;
+              this.destroyHls();
+              this.hls = new Hls(this.getConfig());
+              this.hls.loadSource(url);
+              this.hls.attachMedia(this.video);
+              this.bindHlsEvents();
+            }
+          }, 2000 * this._subPlaylistRetries);
+          return;
+        }
         this.track('error', {
           error_message: `${data.type}:${data.details}`,
         });
@@ -101,6 +150,7 @@ export default class StreamManager {
     });
 
     this.video.addEventListener('waiting', () => {
+      if (this.bufferingStart > 0) return;
       this.bufferingStart = Date.now();
       this.track('buffering_start');
     });

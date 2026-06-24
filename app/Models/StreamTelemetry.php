@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class StreamTelemetry extends Model
 {
+    public const UPDATED_AT = null;
+
     protected $table = 'stream_telemetry';
 
     protected $fillable = [
