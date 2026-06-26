@@ -19,15 +19,7 @@
           <span class="placeholder-text">Loading stream...</span>
         </div>
         <video muted autoplay playsinline></video>
-        <div class="camera-offline-overlay" aria-hidden="true">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M8 12h8"/>
-          </svg>
-          <span>{{ $c['name'] }} - Offline</span>
-        </div>
         <div class="camera-placeholder-info">
-          <span class="camera-placeholder-name">{{ $c['name'] }}</span>
           <span class="status-badge {{ $c['status'] }}">{{ $c['name'] }} - {{ $c['status'] }}</span>
         </div>
         <button class="fullscreen-close" aria-label="Exit fullscreen">

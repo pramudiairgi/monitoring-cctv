@@ -66,7 +66,8 @@ class CameraResource extends Resource
 
     public static function table(Table $table): Table
     {
-        return $table            
+        return $table
+            ->poll('30s')
             ->columns([
                 TextColumn::make('name')
                     ->searchable(),

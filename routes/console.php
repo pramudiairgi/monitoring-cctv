@@ -9,5 +9,6 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('cameras:check-status')->everyMinute();
+Schedule::command('cameras:check-status')->everyMinute()->withoutOverlapping();
+Schedule::command('cameras:export')->everyFiveMinutes();
 Schedule::command('telemetry:prune')->daily();

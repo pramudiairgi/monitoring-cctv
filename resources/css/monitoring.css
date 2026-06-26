@@ -113,14 +113,14 @@ body {
 
 /* Camera Grid */
 .camera-grid {
-  width: 100vw;
-  height: 100dvh;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  background: #000;
-  overflow: hidden;
-  position: relative;
+    width: 100vw;
+    height: 100dvh;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: #000;
+    overflow: hidden;
+    position: relative;
 }
 
 /* Camera Cell */

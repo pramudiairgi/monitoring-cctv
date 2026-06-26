@@ -11,7 +11,7 @@ class CameraCheckStatusCommand extends Command
 {
     protected $signature = 'cameras:check-status';
 
-    protected $description = 'Probe stream URLs and update camera online/offline status';
+    protected $description = 'Probe stream URLs, determine target URL, and update camera status';
 
     public function handle(): int
     {
@@ -19,14 +19,22 @@ class CameraCheckStatusCommand extends Command
         $changed = 0;
 
         foreach ($cameras as $camera) {
-            $online = $this->probeUrl($camera->stream_url);
+            $streamOnline = $this->probeUrl($camera->stream_url);
+            $adaptiveOnline = $camera->adaptive_url && $this->probeUrl($camera->adaptive_url);
 
-            $newStatus = $online ? 'online' : 'offline';
+            $newStatus = ($streamOnline || $adaptiveOnline) ? 'online' : 'offline';
+            $statusChanged = $camera->status !== $newStatus;
 
-            if ($camera->status !== $newStatus) {
-                $camera->update(['status' => $newStatus]);
+            $targetUrl = $adaptiveOnline ? $camera->adaptive_url : $camera->stream_url;
+            $targetChanged = $camera->target_url !== $targetUrl;
+
+            if ($statusChanged || $targetChanged) {
+                $camera->update([
+                    'status' => $newStatus,
+                    'target_url' => $targetUrl,
+                ]);
                 $changed++;
-                $this->info("Camera [{$camera->name}]: {$camera->status} → {$newStatus}");
+                $this->info("Camera [{$camera->name}]: status={$camera->status}->{$newStatus}, target_url updated");
             }
         }
 
@@ -34,7 +42,7 @@ class CameraCheckStatusCommand extends Command
             app(CameraExport::class)->handle();
         }
 
-        $this->info("Checked {$cameras->count()} cameras, {$changed} status changes.");
+        $this->info("Checked {$cameras->count()} cameras, {$changed} changes.");
 
         return Command::SUCCESS;
     }
@@ -42,7 +50,7 @@ class CameraCheckStatusCommand extends Command
     private function probeUrl(string $url): bool
     {
         try {
-            $response = Http::timeout(5)->head($url);
+            $response = Http::timeout(5)->get($url);
             return $response->successful();
         } catch (\Exception $e) {
             return false;

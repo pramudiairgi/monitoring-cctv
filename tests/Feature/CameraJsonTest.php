@@ -14,8 +14,8 @@ class CameraJsonTest extends TestCase
         $path = storage_path('app/public/cameras.json');
         File::put($path, json_encode([
             'cameras' => [
-                ['id' => 1, 'name' => 'Camera 1', 'stream_url' => 'https://example.com/stream.m3u8', 'adaptive_url' => null, 'category' => 'traffic', 'status' => 'online'],
-                ['id' => 2, 'name' => 'Camera 2', 'stream_url' => 'https://example.com/stream2.m3u8', 'adaptive_url' => null, 'category' => 'parking', 'status' => 'offline'],
+                ['id' => 1, 'name' => 'Camera 1', 'stream_url' => 'https://example.com/stream.m3u8', 'adaptive_url' => null, 'target_url' => 'https://example.com/stream.m3u8', 'category' => 'traffic', 'status' => 'online'],
+                ['id' => 2, 'name' => 'Camera 2', 'stream_url' => 'https://example.com/stream2.m3u8', 'adaptive_url' => null, 'target_url' => 'https://example.com/stream2.m3u8', 'category' => 'parking', 'status' => 'offline'],
             ],
             'categories' => [
                 ['value' => 'traffic', 'label' => 'Traffic'],
@@ -40,7 +40,7 @@ class CameraJsonTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonStructure([
             'cameras' => [
-                '*' => ['id', 'name', 'stream_url', 'category', 'status'],
+                '*' => ['id', 'name', 'stream_url', 'target_url', 'category', 'status'],
             ],
             'categories',
         ]);

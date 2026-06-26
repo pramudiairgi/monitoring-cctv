@@ -35,4 +35,22 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | HLS Proxy
+    |--------------------------------------------------------------------------
+    |
+    | When using nginx reverse proxy to bypass browser 6-connection limit,
+    | set HLS_PROXY_PREFIX=/hls and HLS_PROXY_DOMAINS in .env.
+    |
+    | Example:
+    |   HLS_PROXY_PREFIX=/hls
+    |   HLS_PROXY_DOMAINS="https://livepantau.semarangkota.go.id"
+    |
+    */
+    'hls' => [
+        'proxy_prefix' => env('HLS_PROXY_PREFIX'),
+        'proxy_domains' => explode(',', env('HLS_PROXY_DOMAINS', '')),
+    ],
+
 ];

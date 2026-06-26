@@ -14,6 +14,7 @@ class Camera extends Model
         'name',
         'stream_url',
         'adaptive_url',
+        'target_url',
         'category_id',
         'status',
         'order',
