@@ -482,7 +482,7 @@ function enterFullscreen(cameraId) {
     const camera = cameras.find((c) => c.id === cameraId);
     const displayName = camera?.name || "";
     announce(`${displayName} - fullscreen view`);
-    if (cell.requestFullscreen) {
+    if (!document.fullscreenElement && cell.requestFullscreen) {
         cell.requestFullscreen().catch(() => {
             cell.classList.remove("fullscreen");
             fullscreenCameraId = null;
@@ -492,7 +492,7 @@ function enterFullscreen(cameraId) {
 }
 
 function exitFullscreen() {
-    if (document.fullscreenElement) {
+    if (document.fullscreenElement?.closest(".camera-cell")) {
         document.exitFullscreen().catch(() => {});
     } else if (fullscreenCameraId !== null) {
         const cell = document.querySelector(
@@ -633,9 +633,43 @@ grid?.addEventListener("keydown", (e) => {
     }
 });
 
+function toggleFullscreen() {
+    const activeCell = document.activeElement?.closest(".camera-cell");
+    if (fullscreenCameraId !== null) {
+        exitFullscreen();
+    } else if (activeCell) {
+        enterFullscreen(parseInt(activeCell.dataset.id, 10));
+    } else if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+        document.exitFullscreen().catch(() => {});
+    }
+}
+
 document.addEventListener("keydown", (e) => {
+    const tag = e.target.tagName;
+    const isInput = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+
     if (e.key === "Escape" && fullscreenCameraId !== null) {
         exitFullscreen();
+        return;
+    }
+
+    if (e.key === "F11") {
+        e.preventDefault();
+        toggleFullscreen();
+        return;
+    }
+
+    if (!isInput && (e.key === "f" || e.key === "F")) {
+        e.preventDefault();
+        toggleFullscreen();
+        return;
+    }
+
+    if (!isInput && (e.key === "r" || e.key === "R")) {
+        pollLocalJson();
+        return;
     }
 });
 
@@ -667,6 +701,10 @@ window.addEventListener("beforeunload", () => {
 
 cameras.forEach((c) => {
     currentCameraStates[c.id] = c.status;
+});
+
+document.getElementById("refresh-btn")?.addEventListener("click", () => {
+    pollLocalJson();
 });
 
 telemetry.init();
