@@ -20,6 +20,8 @@ export default class StreamManager {
         this.currentBitrate = 0;
         this.currentLevel = -1;
         this._lastFragTime = 0;
+        this._lastSegmentSize = 0;
+        this._lastDownloadTime = 0;
         this._staleTimer = null;
         this._subPlaylistRetries = 0;
         this._suspended = false;
@@ -38,16 +40,16 @@ export default class StreamManager {
             useFetch: false,
             liveSyncDuration: 40,
             liveMaxLatencyDuration: 50,
-            maxBufferLength: 15,
-            maxMaxBufferLength: 20,
-            backbufferLength: 0,
+            maxBufferLength: 30,
+            maxMaxBufferLength: 60,
+            backbufferLength: 30,
             startFragPrefetch: true,
             startLevel: 0,
-            abrEwmaDefaultEstimate: 100000,
+            abrEwmaDefaultEstimate: 500000,
             abrEwmaFastVoD: 3.0,
             abrEwmaSlowVoD: 5.0,
-            abrBandWidthFactor: 0.8,
-            abrBandWidthUpFactor: 0.7,
+            abrBandWidthFactor: 0.5,
+            abrBandWidthUpFactor: 0.5,
             capLevelToPlayerSize: true,
             capLevelOnFPSDrop: true,
             renderNudge: true,
@@ -86,8 +88,13 @@ export default class StreamManager {
             this.track("play");
         });
 
-        this.hls.on(Hls.Events.FRAG_LOADED, () => {
+        this.hls.on(Hls.Events.FRAG_LOADED, (_, data) => {
             this._lastFragTime = Date.now();
+            const stats = data.frag?.stats;
+            if (stats) {
+                this._lastSegmentSize = stats.loaded;
+                this._lastDownloadTime = (stats.loading?.end ?? 0) - (stats.loading?.start ?? Date.now());
+            }
         });
 
         this.hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
