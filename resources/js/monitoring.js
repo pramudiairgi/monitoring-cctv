@@ -6,6 +6,7 @@ const NAVBAR_HIDE_DELAY_GRID = 2000;
 const TELEMETRY_ENDPOINT = "/api/telemetry";
 const TELEMETRY_FLUSH_INTERVAL = 300000;
 const TELEMETRY_FLUSH_THRESHOLD = 20;
+const STORAGE_KEY_SELECTION = "camera-selection";
 
 let cameras = CAMERAS;
 let currentCameraStates = {};
@@ -13,6 +14,7 @@ let searchQuery = "";
 let selectedCategory = "";
 let selectedStatus = "online";
 let fullscreenCameraId = null;
+let cameraSelection = null;
 let navbarTimeout = null;
 let streamManagers = new Map();
 let initQueue = new Map();
@@ -93,6 +95,10 @@ function getFilteredIds() {
                 c.name.toLowerCase().includes(q) ||
                 c.category.toLowerCase().includes(q),
         );
+    }
+
+    if (cameraSelection !== null) {
+        filtered = filtered.filter((c) => cameraSelection.has(c.id));
     }
 
     return new Set(filtered.map((c) => c.id));
@@ -471,38 +477,79 @@ function resumeAllStreams() {
     streamManagers.forEach((manager) => manager.resume());
 }
 
+function getVisibleCameras() {
+    return cameras.filter((c) => {
+        const cell = document.querySelector(`.camera-cell[data-id="${c.id}"]`);
+        return cell && cell.style.display !== "none" && c.status === "online";
+    });
+}
+
+function switchFullscreen(newCameraId) {
+    if (newCameraId === fullscreenCameraId) return;
+
+    const oldCell = document.querySelector(`.camera-cell[data-id="${fullscreenCameraId}"]`);
+    if (oldCell) oldCell.classList.remove("fullscreen");
+
+    const newCell = document.querySelector(`.camera-cell[data-id="${newCameraId}"]`);
+    if (!newCell) {
+        fullscreenCameraId = null;
+        document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("nav-visible"));
+        showNavbar();
+        resumeAllStreams();
+        return;
+    }
+
+    fullscreenCameraId = newCameraId;
+    newCell.classList.add("fullscreen");
+    newCell.focus();
+
+    document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("hidden-nav"));
+    clearTimeout(navbarTimeout);
+    scheduleNavbarHide();
+
+    const targetMgr = streamManagers.get(newCameraId);
+    if (targetMgr && targetMgr._suspended) targetMgr.resume();
+
+    streamManagers.forEach((mgr, id) => {
+        if (id !== newCameraId) mgr.suspend();
+    });
+
+    const camera = cameras.find((c) => c.id === newCameraId);
+    announce(`${camera?.name || ""} - fullscreen view`);
+}
+
 function enterFullscreen(cameraId) {
     const cell = document.querySelector(`.camera-cell[data-id="${cameraId}"]`);
     if (!cell) return;
     fullscreenCameraId = cameraId;
     cell.classList.add("fullscreen");
     cell.focus();
+    document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.add("nav-visible"));
+    suspendOtherStreams(cameraId);
+    clearTimeout(navbarTimeout);
     navbar.classList.add("hidden");
     grid?.classList.remove("navbar-visible");
     const camera = cameras.find((c) => c.id === cameraId);
     const displayName = camera?.name || "";
     announce(`${displayName} - fullscreen view`);
-    if (!document.fullscreenElement && cell.requestFullscreen) {
-        cell.requestFullscreen().catch(() => {
-            cell.classList.remove("fullscreen");
-            fullscreenCameraId = null;
-            showNavbar();
-        });
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
     }
 }
 
 function exitFullscreen() {
-    if (document.fullscreenElement?.closest(".camera-cell")) {
+    if (fullscreenCameraId === null) return;
+    const cell = document.querySelector(
+        `.camera-cell[data-id="${fullscreenCameraId}"]`,
+    );
+    if (cell) cell.classList.remove("fullscreen");
+    fullscreenCameraId = null;
+    document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("nav-visible"));
+    showNavbar();
+    resumeAllStreams();
+    announce("Exited fullscreen view");
+    if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
-    } else if (fullscreenCameraId !== null) {
-        const cell = document.querySelector(
-            `.camera-cell[data-id="${fullscreenCameraId}"]`,
-        );
-        if (cell) cell.classList.remove("fullscreen");
-        fullscreenCameraId = null;
-        showNavbar();
-        resumeAllStreams();
-        announce("Exited fullscreen view");
     }
 }
 
@@ -514,6 +561,8 @@ function handleFullscreenChange() {
         fullscreenCameraId = id;
         cell.classList.add("fullscreen");
         cell.focus();
+        document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.add("nav-visible"));
+        clearTimeout(navbarTimeout);
         navbar.classList.add("hidden");
         grid?.classList.remove("navbar-visible");
         suspendOtherStreams(id);
@@ -521,14 +570,10 @@ function handleFullscreenChange() {
         const displayName = camera?.name || "";
         announce(`${displayName} - fullscreen view`);
     } else {
-        const prevCell = document.querySelector(
-            `.camera-cell[data-id="${fullscreenCameraId}"]`,
-        );
-        if (prevCell) prevCell.classList.remove("fullscreen");
-        fullscreenCameraId = null;
+        if (fullscreenCameraId !== null) return;
+        document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("nav-visible"));
         showNavbar();
         resumeAllStreams();
-        announce("Exited fullscreen view");
     }
 }
 
@@ -543,12 +588,14 @@ function scheduleNavbarHide() {
             : NAVBAR_HIDE_DELAY_GRID;
     navbarTimeout = setTimeout(() => {
         navbar.classList.add("hidden");
+        document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.add("hidden-nav"));
         grid?.classList.remove("navbar-visible");
     }, delay);
 }
 
 function showNavbar() {
     navbar.classList.remove("hidden");
+    document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("hidden-nav"));
     grid?.classList.add("navbar-visible");
     clearTimeout(navbarTimeout);
     scheduleNavbarHide();
@@ -562,6 +609,131 @@ function announce(message) {
             el.textContent = message;
         });
     }
+}
+
+function loadSelection() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY_SELECTION);
+        if (stored) {
+            const arr = JSON.parse(stored);
+            if (Array.isArray(arr) && arr.length > 0) {
+                cameraSelection = new Set(arr);
+                return;
+            }
+        }
+    } catch {}
+    cameraSelection = null;
+}
+
+function saveSelection() {
+    try {
+        if (cameraSelection === null || cameraSelection.size === cameras.length) {
+            localStorage.removeItem(STORAGE_KEY_SELECTION);
+        } else {
+            localStorage.setItem(STORAGE_KEY_SELECTION, JSON.stringify([...cameraSelection]));
+        }
+    } catch {}
+}
+
+function initSelectionPanel() {
+    const overlay = document.createElement("div");
+    overlay.className = "selection-overlay";
+    overlay.setAttribute("aria-hidden", "true");
+
+    const panel = document.createElement("aside");
+    panel.className = "selection-panel";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-label", "Camera selection");
+
+    panel.innerHTML = `
+      <div class="selection-panel-header">
+        <h2>Select Cameras</h2>
+        <button class="selection-panel-close" aria-label="Close selection panel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div class="selection-panel-actions">
+        <button class="selection-action-btn" data-action="select-all">Select All</button>
+        <button class="selection-action-btn" data-action="deselect-all">Deselect All</button>
+      </div>
+      <div class="selection-panel-list"></div>
+    `;
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(panel);
+
+    const list = panel.querySelector(".selection-panel-list");
+    const closeBtn = panel.querySelector(".selection-panel-close");
+    const selectAllBtn = panel.querySelector('[data-action="select-all"]');
+    const deselectAllBtn = panel.querySelector('[data-action="deselect-all"]');
+
+    function renderList() {
+        list.innerHTML = "";
+        cameras.filter((c) => c.status === "online").forEach((c) => {
+            const selected = cameraSelection === null || cameraSelection.has(c.id);
+            const item = document.createElement("label");
+            item.className = "selection-item";
+            item.innerHTML = `
+              <span class="toggle-switch">
+                <input type="checkbox" ${selected ? "checked" : ""} aria-label="Show ${c.name}">
+                <span class="toggle-slider"></span>
+              </span>
+              <span class="selection-item-name">${escapeHtml(c.name)}</span>
+              <span class="selection-item-status ${c.status}">${c.status}</span>
+            `;
+            item.querySelector("input").addEventListener("change", (e) => {
+                if (cameraSelection === null) {
+                    cameraSelection = new Set(cameras.map((x) => x.id));
+                }
+                if (e.target.checked) {
+                    cameraSelection.add(c.id);
+                } else {
+                    cameraSelection.delete(c.id);
+                }
+                saveSelection();
+                applyFilters();
+            });
+            list.appendChild(item);
+        });
+    }
+
+    function open() {
+        renderList();
+        overlay.classList.add("open");
+        panel.classList.add("open");
+        overlay.removeAttribute("aria-hidden");
+    }
+
+    function close() {
+        overlay.classList.remove("open");
+        panel.classList.remove("open");
+        overlay.setAttribute("aria-hidden", "true");
+    }
+
+    closeBtn.addEventListener("click", close);
+    overlay.addEventListener("click", close);
+
+    selectAllBtn.addEventListener("click", () => {
+        cameraSelection = null;
+        saveSelection();
+        renderList();
+        applyFilters();
+    });
+
+    deselectAllBtn.addEventListener("click", () => {
+        cameraSelection = new Set();
+        saveSelection();
+        renderList();
+        applyFilters();
+    });
+
+    document.getElementById("select-btn")?.addEventListener("click", open);
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && panel.classList.contains("open")) {
+            close();
+        }
+    });
 }
 
 function debounce(fn, delay) {
@@ -655,6 +827,20 @@ document.addEventListener("keydown", (e) => {
         return;
     }
 
+    if (fullscreenCameraId !== null && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        e.preventDefault();
+        const visible = getVisibleCameras();
+        if (visible.length <= 1) return;
+        const idx = visible.findIndex((c) => c.id === fullscreenCameraId);
+        if (idx === -1) return;
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+            switchFullscreen(visible[(idx - 1 + visible.length) % visible.length].id);
+        } else {
+            switchFullscreen(visible[(idx + 1) % visible.length].id);
+        }
+        return;
+    }
+
     if (e.key === "F11") {
         e.preventDefault();
         toggleFullscreen();
@@ -672,6 +858,35 @@ document.addEventListener("keydown", (e) => {
         return;
     }
 });
+
+document.addEventListener("click", (e) => {
+    const navBtn = e.target.closest(".fullscreen-nav-btn");
+    if (!navBtn || fullscreenCameraId === null) return;
+    const visible = getVisibleCameras();
+    if (visible.length <= 1) return;
+    const idx = visible.findIndex((c) => c.id === fullscreenCameraId);
+    if (idx === -1) return;
+    if (navBtn.classList.contains("prev")) {
+        switchFullscreen(visible[(idx - 1 + visible.length) % visible.length].id);
+    } else if (navBtn.classList.contains("next")) {
+        switchFullscreen(visible[(idx + 1) % visible.length].id);
+    }
+});
+
+function initNavButtons() {
+    const frag = document.createDocumentFragment();
+    const prevBtn = document.createElement("button");
+    prevBtn.className = "fullscreen-nav-btn prev";
+    prevBtn.setAttribute("aria-label", "Previous camera");
+    prevBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
+    const nextBtn = document.createElement("button");
+    nextBtn.className = "fullscreen-nav-btn next";
+    nextBtn.setAttribute("aria-label", "Next camera");
+    nextBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
+    frag.appendChild(prevBtn);
+    frag.appendChild(nextBtn);
+    document.body.appendChild(frag);
+}
 
 navbar?.addEventListener("mouseenter", showNavbar);
 document.addEventListener("mousemove", throttle(showNavbar, 100));
@@ -708,6 +923,9 @@ document.getElementById("refresh-btn")?.addEventListener("click", () => {
 });
 
 telemetry.init();
+loadSelection();
+initNavButtons();
+initSelectionPanel();
 buildGrid();
 applyFilters();
 showNavbar();
