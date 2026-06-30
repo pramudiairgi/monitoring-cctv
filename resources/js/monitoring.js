@@ -171,7 +171,11 @@ function buildGrid() {
         fragment.appendChild(cell);
     });
 
+    const existingNavbar = grid.querySelector("#navbar");
     grid.replaceChildren(fragment);
+    if (existingNavbar) {
+        grid.insertBefore(existingNavbar, grid.firstChild);
+    }
     cleanupStreamManagers();
     initObserver();
 }
@@ -190,6 +194,15 @@ function onStreamEnded(cameraId) {
 function cleanupStreamManagers() {
     streamManagers.forEach((manager) => manager.destroy());
     streamManagers.clear();
+}
+
+function categoryColor(cat) {
+    let hash = 0;
+    for (let i = 0; i < cat.length; i++) {
+        hash = cat.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 60%, 60%)`;
 }
 
 function escapeHtml(str) {
@@ -463,8 +476,10 @@ function applyFilters() {
         emptyMsg.style.display = "none";
     }
 
-    if (cameraCount)
-        cameraCount.textContent = `${visibleCount} / ${cameras.length} cameras`;
+    if (cameraCount) {
+        const selected = cameraSelection === null ? cameras.length : cameraSelection.size;
+        cameraCount.textContent = `${visibleCount} visible / ${selected} selected`;
+    }
 }
 
 function suspendOtherStreams(activeId) {
@@ -563,8 +578,10 @@ function handleFullscreenChange() {
         cell.focus();
         document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.add("nav-visible"));
         clearTimeout(navbarTimeout);
-        navbar.classList.add("hidden");
-        grid?.classList.remove("navbar-visible");
+        if (window.innerWidth > 768) {
+            navbar.classList.add("hidden");
+            grid?.classList.remove("navbar-visible");
+        }
         suspendOtherStreams(id);
         const camera = cameras.find((c) => c.id === id);
         const displayName = camera?.name || "";
@@ -581,6 +598,7 @@ document.addEventListener("fullscreenchange", handleFullscreenChange);
 document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
 
 function scheduleNavbarHide() {
+    if (window.innerWidth <= 768) return;
     clearTimeout(navbarTimeout);
     const delay =
         fullscreenCameraId !== null
@@ -673,12 +691,14 @@ function initSelectionPanel() {
             const selected = cameraSelection === null || cameraSelection.has(c.id);
             const item = document.createElement("label");
             item.className = "selection-item";
+            const catColor = categoryColor(c.category);
             item.innerHTML = `
               <span class="toggle-switch">
                 <input type="checkbox" ${selected ? "checked" : ""} aria-label="Show ${c.name}">
                 <span class="toggle-slider"></span>
               </span>
               <span class="selection-item-name">${escapeHtml(c.name)}</span>
+              <span class="selection-item-category" style="background:${catColor}22;color:${catColor}">${c.category}</span>
               <span class="selection-item-status ${c.status}">${c.status}</span>
             `;
             item.querySelector("input").addEventListener("change", (e) => {
@@ -873,6 +893,80 @@ document.addEventListener("click", (e) => {
     }
 });
 
+function initFilterSheet() {
+    const toggleBtn = document.getElementById("filter-toggle");
+    const sheet = document.getElementById("filter-sheet");
+    const overlay = document.getElementById("filter-sheet-overlay");
+    const closeBtn = document.getElementById("filter-sheet-close");
+    const catSelect = document.getElementById("category-filter-sheet");
+    const statusSelect = document.getElementById("status-filter-sheet");
+    const refreshBtn = document.getElementById("refresh-btn-sheet");
+    const selectBtn = document.getElementById("select-btn-sheet");
+
+    function openSheet() {
+        if (catSelect) catSelect.value = selectedCategory;
+        if (statusSelect) statusSelect.value = selectedStatus;
+        sheet?.classList.add("open");
+        overlay?.classList.add("open");
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeSheet() {
+        sheet?.classList.remove("open");
+        overlay?.classList.remove("open");
+        document.body.style.overflow = "";
+    }
+
+    toggleBtn?.addEventListener("click", openSheet);
+    closeBtn?.addEventListener("click", closeSheet);
+    overlay?.addEventListener("click", closeSheet);
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && sheet?.classList.contains("open")) {
+            closeSheet();
+        }
+    });
+
+    catSelect?.addEventListener("change", function () {
+        const mainCat = document.getElementById("category-filter");
+        if (mainCat) mainCat.value = this.value;
+        selectedCategory = this.value;
+        closeSheet();
+        applyFilters();
+    });
+
+    statusSelect?.addEventListener("change", function () {
+        const mainStatus = document.getElementById("status-filter");
+        if (mainStatus) mainStatus.value = this.value;
+        selectedStatus = this.value;
+        closeSheet();
+        applyFilters();
+    });
+
+    refreshBtn?.addEventListener("click", function () {
+        closeSheet();
+        pollLocalJson();
+    });
+
+    selectBtn?.addEventListener("click", function () {
+        closeSheet();
+        document.getElementById("select-btn")?.click();
+    });
+}
+
+function repositionNavbar() {
+    const isMobile = window.innerWidth <= 768;
+    const nav = document.getElementById("navbar");
+    const g = document.getElementById("camera-grid");
+    if (!nav || !g) return;
+    const insideGrid = g.contains(nav);
+    if (isMobile && !insideGrid) {
+        g.insertBefore(nav, g.firstChild);
+    } else if (!isMobile && insideGrid) {
+        g.parentNode.insertBefore(nav, g);
+    }
+}
+
 function initNavButtons() {
     const frag = document.createDocumentFragment();
     const prevBtn = document.createElement("button");
@@ -906,7 +1000,10 @@ statusFilter?.addEventListener("focus", () => {
 });
 statusFilter?.addEventListener("blur", scheduleNavbarHide);
 
-window.addEventListener("resize", debounce(applyFilters, 150));
+window.addEventListener("resize", debounce(() => {
+    repositionNavbar();
+    applyFilters();
+}, 150));
 
 window.addEventListener("beforeunload", () => {
     cleanupStreamManagers();
@@ -925,7 +1022,9 @@ document.getElementById("refresh-btn")?.addEventListener("click", () => {
 telemetry.init();
 loadSelection();
 initNavButtons();
+initFilterSheet();
 initSelectionPanel();
+repositionNavbar();
 buildGrid();
 applyFilters();
 showNavbar();
