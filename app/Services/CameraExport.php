@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Camera;
 use App\Models\Category;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 
 class CameraExport
@@ -43,6 +44,7 @@ class CameraExport
 
         $path = storage_path('app/public/cameras.json');
         File::put($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        Cache::forget('cameras_json');
     }
 
     private function proxyUrl(string $url, ?string $prefix, array $domains): string

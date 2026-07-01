@@ -13,6 +13,8 @@
 </head>
 <body>
   <a href="#camera-grid" class="skip-link">Skip to camera grid</a>
-  @yield('content')
+  <div id="app">
+    @yield('content')
+  </div>
 </body>
 </html>

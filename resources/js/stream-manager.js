@@ -65,6 +65,9 @@ export default class StreamManager {
     attachMedia() {
         if (this.destroyed || !this.video) return;
 
+        this.showPlaceholder();
+        if (this.video) this.video.style.display = "";
+
         if (Hls.isSupported()) {
             this.hls = new Hls(this.getConfig());
             this.hls.attachMedia(this.video);
@@ -80,13 +83,16 @@ export default class StreamManager {
 
     bindHlsEvents() {
         this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            this.hidePlaceholder();
             this.video.play().catch(() => {});
             this.startTime = Date.now();
             this._lastFragTime = Date.now();
             this.startStaleCheck();
             this.track("play");
         });
+
+        this.video.addEventListener("loadeddata", () => {
+            this.hidePlaceholder();
+        }, { once: true });
 
         this.hls.on(Hls.Events.FRAG_LOADED, (_, data) => {
             this._lastFragTime = Date.now();
@@ -195,11 +201,14 @@ export default class StreamManager {
 
     bindNativeEvents() {
         this.video.addEventListener("loadedmetadata", () => {
-            this.hidePlaceholder();
             this.video.play().catch(() => {});
             this.startTime = Date.now();
             this.track("play");
         });
+
+        this.video.addEventListener("loadeddata", () => {
+            this.hidePlaceholder();
+        }, { once: true });
 
         this.video.addEventListener("error", () => {
             this.showMessage("Stream unavailable");
@@ -324,7 +333,15 @@ export default class StreamManager {
 
     hidePlaceholder() {
         if (this.placeholder) {
-            this.placeholder.style.display = "none";
+            this.placeholder.classList.add("placeholder-hidden");
+        }
+    }
+
+    showPlaceholder() {
+        if (this.placeholder) {
+            this.placeholder.classList.remove("placeholder-hidden");
+            this.placeholder.style.display = "";
+            this.placeholder.style.opacity = "";
         }
     }
 

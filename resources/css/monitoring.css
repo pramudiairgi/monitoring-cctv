@@ -66,6 +66,14 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+#app {
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
 .skip-link {
     position: absolute;
     top: -40px;
@@ -101,8 +109,9 @@ body {
 
 /* Camera Grid */
 .camera-grid {
-    width: 100vw;
-    height: 100dvh;
+    flex-grow: 1;
+    min-height: 0;
+    width: 100%;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 1px;
@@ -123,7 +132,6 @@ body {
     line-height: 0;
     font-size: 0;
     cursor: pointer;
-    min-height: 120px;
     -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
     box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.06);
     transition: box-shadow var(--duration-fast) var(--easing-default);
@@ -313,6 +321,12 @@ body {
     gap: var(--space-2);
     background: var(--color-bg-primary);
     animation: placeholder-pulse 2s ease-in-out infinite;
+    transition: opacity 0.35s ease;
+}
+
+.camera-placeholder.placeholder-hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 
 @keyframes placeholder-pulse {
@@ -323,6 +337,14 @@ body {
     50% {
         opacity: 1;
     }
+}
+
+.placeholder-caption {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    text-align: center;
+    padding: 0 var(--space-2);
+    line-height: 1.3;
 }
 
 .camera-placeholder-info {
@@ -774,11 +796,9 @@ body {
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .navbar {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        padding: var(--space-3) var(--space-4) 0;
+        position: relative;
+        padding: var(--space-3) 0 0;
+        margin-bottom: var(--space-2);
         transform: none;
         opacity: 1;
         pointer-events: auto;
@@ -793,11 +813,11 @@ body {
 
     .navbar-inner {
         flex-wrap: wrap;
-        padding: var(--space-2);
+        padding: var(--space-1) var(--space-2);
         gap: var(--space-2);
-        border-radius: var(--radius-lg);
-        width: 100%;
-        max-width: 420px;
+        border-radius: var(--radius-pill);
+        width: auto;
+        max-width: 95%;
     }
 
     .filter-divider {
@@ -874,12 +894,13 @@ body {
         color: var(--color-text-secondary);
     }
 
-    .camera-placeholder-name {
-        font-size: var(--text-base);
+    .placeholder-caption {
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
     }
 
-    .camera-grid.navbar-visible {
-        padding-top: 84px;
+    .camera-placeholder-name {
+        font-size: var(--text-base);
     }
 
     /* Filter Sheet */
@@ -1028,6 +1049,10 @@ body {
         transition: none;
     }
 
+    .navbar.hidden {
+        transition: none;
+    }
+
     .navbar-inner {
         animation: none;
     }
@@ -1038,6 +1063,7 @@ body {
 
     .camera-placeholder {
         animation: none;
+        transition: none;
     }
 
     .camera-placeholder-info {

@@ -1,36 +1,6 @@
 @extends('layouts.monitoring')
 
 @section('content')
-  <div id="camera-grid" class="camera-grid" role="region" aria-label="Camera grid">
-    @foreach($cameras as $c)
-      <div class="camera-cell"
-           data-id="{{ $c['id'] }}"
-           data-name="{{ strtolower($c['name']) }}"
-           data-category="{{ $c['category'] }}"
-           data-status="{{ $c['status'] }}"
-           tabindex="0"
-           role="button"
-           aria-label="{{ $c['name'] }} - {{ $c['status'] }}">
-        <div class="camera-placeholder">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="2" y="4" width="20" height="16" rx="2"/>
-            <path d="M10 9l5 3-5 3V9z"/>
-          </svg>
-          <span class="placeholder-text">Loading stream...</span>
-        </div>
-        <video muted autoplay playsinline></video>
-        <div class="camera-placeholder-info">
-          <span class="status-badge {{ $c['status'] }}">{{ $c['name'] }} - {{ $c['status'] }}</span>
-        </div>
-        <button class="fullscreen-close" aria-label="Exit fullscreen">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-          </svg>
-        </button>
-      </div>
-    @endforeach
-  </div>
-
   <nav id="navbar" class="navbar" aria-label="Camera filters">
     <div class="navbar-inner glass-panel">
       <div class="search-row">
@@ -73,6 +43,37 @@
       </select>
     </div>
   </nav>
+
+  <div id="camera-grid" class="camera-grid" role="region" aria-label="Camera grid">
+    @foreach($cameras as $c)
+      <div class="camera-cell"
+           data-id="{{ $c['id'] }}"
+           data-name="{{ strtolower($c['name']) }}"
+           data-category="{{ $c['category'] }}"
+           data-status="{{ $c['status'] }}"
+           tabindex="0"
+           role="button"
+           aria-label="{{ $c['name'] }} - {{ $c['status'] }}">
+        <div class="camera-placeholder">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2" y="4" width="20" height="16" rx="2"/>
+            <path d="M10 9l5 3-5 3V9z"/>
+          </svg>
+          <span class="placeholder-text">Loading stream...</span>
+          <span class="placeholder-caption">{{ $c['name'] }}</span>
+        </div>
+        <video muted autoplay playsinline></video>
+        <div class="camera-placeholder-info">
+          <span class="status-badge {{ $c['status'] }}">{{ $c['name'] }} - {{ $c['status'] }}</span>
+        </div>
+        <button class="fullscreen-close" aria-label="Exit fullscreen">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+          </svg>
+        </button>
+      </div>
+    @endforeach
+  </div>
 
   <div id="filter-sheet-overlay" class="filter-sheet-overlay" aria-hidden="true"></div>
   <aside id="filter-sheet" class="filter-sheet" role="dialog" aria-label="Camera filters">

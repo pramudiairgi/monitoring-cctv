@@ -9,6 +9,7 @@ const TELEMETRY_FLUSH_THRESHOLD = 20;
 const STORAGE_KEY_SELECTION = "camera-selection";
 
 let cameras = CAMERAS;
+let camerasMap = new Map(cameras.map((c) => [c.id, c]));
 let currentCameraStates = {};
 let searchQuery = "";
 let selectedCategory = "";
@@ -20,6 +21,10 @@ let streamManagers = new Map();
 let initQueue = new Map();
 let observer = null;
 let _polling = false;
+let _statusChanged = false;
+const STREAM_CONCURRENCY = 3;
+let _activeStreamInit = 0;
+let _streamQueue = [];
 
 const grid = document.getElementById("camera-grid");
 const cameraNames = new Map(cameras.map((c) => [c.id, c.name]));
@@ -107,7 +112,7 @@ function getFilteredIds() {
 function updateBadge(cell, status) {
     cell.dataset.status = status;
     const camId = parseInt(cell.dataset.id, 10);
-    const camera = cameras.find((c) => c.id === camId);
+    const camera = camerasMap.get(camId);
     const displayName = camera?.name || "";
     const badge = cell.querySelector(".status-badge");
     if (badge) {
@@ -121,67 +126,10 @@ function cameraPriority(c) {
     return c.status === "online" ? 0 : 1;
 }
 
-function buildGrid() {
-    if (grid.querySelectorAll(".camera-cell").length > 0) {
-        cleanupStreamManagers();
-        initObserver();
-        return;
-    }
 
-    const fragment = document.createDocumentFragment();
-
-    const sorted = [...cameras].sort(
-        (a, b) => cameraPriority(a) - cameraPriority(b),
-    );
-
-    sorted.forEach((c) => {
-        const cell = document.createElement("div");
-        cell.className = "camera-cell";
-        cell.dataset.id = c.id;
-        cell.dataset.name = c.name.toLowerCase();
-        cell.dataset.category = c.category;
-        cell.dataset.status = c.status;
-        cell.setAttribute("tabindex", "0");
-        cell.setAttribute("role", "button");
-        cell.setAttribute("aria-label", `${c.name} - ${c.status}`);
-
-        cell.innerHTML = `
-      <div class="camera-placeholder">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="2" y="4" width="20" height="16" rx="2"/>
-          <path d="M10 9l5 3-5 3V9z"/>
-        </svg>
-        <span class="placeholder-text">Loading stream...</span>
-      </div>
-      <video muted autoplay playsinline></video>
-      <div class="camera-placeholder-info">
-        <span class="status-badge ${escapeHtml(c.status)}">${escapeHtml(c.name)} - ${escapeHtml(c.status)}</span>
-      </div>
-      <button class="fullscreen-close" aria-label="Exit fullscreen">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-        </svg>
-      </button>
-    `;
-
-        if (c.status === "online") {
-            cell.style.order = "-1";
-        }
-
-        fragment.appendChild(cell);
-    });
-
-    const existingNavbar = grid.querySelector("#navbar");
-    grid.replaceChildren(fragment);
-    if (existingNavbar) {
-        grid.insertBefore(existingNavbar, grid.firstChild);
-    }
-    cleanupStreamManagers();
-    initObserver();
-}
 
 function onStreamEnded(cameraId) {
-    const camera = cameras.find((c) => c.id === cameraId);
+    const camera = camerasMap.get(cameraId);
     if (!camera) return;
 
     const cell = document.querySelector(`.camera-cell[data-id="${cameraId}"]`);
@@ -221,8 +169,20 @@ function markCameraOffline(camera, cell) {
     const placeholder = cell.querySelector(".camera-placeholder");
     const pt = placeholder?.querySelector(".placeholder-text");
     if (pt) pt.textContent = `${camera.name} - Patroli Offline`;
+    placeholder?.classList.remove("placeholder-hidden");
     cell.querySelector("video").style.display = "none";
     updateBadge(cell, "offline");
+}
+
+function processStreamQueue() {
+    while (_streamQueue.length > 0 && _activeStreamInit < STREAM_CONCURRENCY) {
+        const next = _streamQueue.shift();
+        _activeStreamInit++;
+        next().finally(() => {
+            _activeStreamInit--;
+            processStreamQueue();
+        });
+    }
 }
 
 async function initStream(cell, camera, targetUrl) {
@@ -250,44 +210,38 @@ async function initStream(cell, camera, targetUrl) {
     });
     initQueue.set(camera.id, lock);
 
-    try {
-        const stagger = (camera.id * 137.5 + Math.random() * 500) % 2000;
-
-        setTimeout(async () => {
-            try {
-                const stillOnline = camera.status === "online";
-                if (!stillOnline || cell.style.display === "none") {
-                    _unlock();
-                    return;
-                }
-
-                const collision = streamManagers.get(camera.id);
-                if (collision) {
-                    collision.destroy();
-                    streamManagers.delete(camera.id);
-                }
-
-                const { default: StreamManager } =
-                    await import("./stream-manager.js");
-
-                const manager = new StreamManager(
-                    camera.id,
-                    video,
-                    targetUrl,
-                    telemetry,
-                    onStreamEnded,
-                );
-
-                manager.attachMedia();
-                streamManagers.set(camera.id, manager);
-            } finally {
+    _streamQueue.push(async () => {
+        try {
+            const stillOnline = camera.status === "online";
+            if (!stillOnline || cell.style.display === "none") {
                 _unlock();
+                return;
             }
-        }, stagger);
-    } catch (e) {
-        _unlock();
-        throw e;
-    }
+
+            const collision = streamManagers.get(camera.id);
+            if (collision) {
+                collision.destroy();
+                streamManagers.delete(camera.id);
+            }
+
+            const { default: StreamManager } = await import("./stream-manager.js");
+
+            const manager = new StreamManager(
+                camera.id,
+                video,
+                targetUrl,
+                telemetry,
+                onStreamEnded,
+            );
+
+            manager.attachMedia();
+            streamManagers.set(camera.id, manager);
+        } finally {
+            _unlock();
+        }
+    });
+
+    processStreamQueue();
 }
 
 async function pollLocalJson() {
@@ -300,11 +254,13 @@ async function pollLocalJson() {
         const data = await res.json();
 
         for (const newCam of data.cameras) {
-            const oldCam = cameras.find((c) => c.id === newCam.id);
+            const oldCam = camerasMap.get(newCam.id);
             if (!oldCam) continue;
 
             const prevStatus = currentCameraStates[newCam.id];
             const newStatus = newCam.status;
+            const statusChanged = prevStatus !== newStatus;
+            if (statusChanged) _statusChanged = true;
 
             oldCam.status = newStatus;
             oldCam.target_url = newCam.target_url;
@@ -353,7 +309,10 @@ async function pollLocalJson() {
             currentCameraStates[newCam.id] = newStatus;
         }
 
-        applyFilters();
+        if (_statusChanged) {
+            _statusChanged = false;
+            applyFilters();
+        }
     } catch {
         /* silent */
     } finally {
@@ -370,7 +329,7 @@ function initObserver() {
                 if (entry.isIntersecting) {
                     const cell = entry.target;
                     const camId = parseInt(cell.dataset.id, 10);
-                    const camera = cameras.find((c) => c.id === camId);
+                    const camera = camerasMap.get(camId);
                     if (
                         camera &&
                         camera.status === "online" &&
@@ -409,7 +368,7 @@ function applyFilters() {
     });
 
     const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const vh = grid.clientHeight || window.innerHeight;
     const targetAspect = 16 / 9;
     const isMobile = vw <= 768;
     const isLandscape = vw > vh;
@@ -529,7 +488,7 @@ function switchFullscreen(newCameraId) {
         if (id !== newCameraId) mgr.suspend();
     });
 
-    const camera = cameras.find((c) => c.id === newCameraId);
+    const camera = camerasMap.get(newCameraId);
     announce(`${camera?.name || ""} - fullscreen view`);
 }
 
@@ -543,8 +502,7 @@ function enterFullscreen(cameraId) {
     suspendOtherStreams(cameraId);
     clearTimeout(navbarTimeout);
     navbar.classList.add("hidden");
-    grid?.classList.remove("navbar-visible");
-    const camera = cameras.find((c) => c.id === cameraId);
+    const camera = camerasMap.get(cameraId);
     const displayName = camera?.name || "";
     announce(`${displayName} - fullscreen view`);
     if (!document.fullscreenElement) {
@@ -580,10 +538,9 @@ function handleFullscreenChange() {
         clearTimeout(navbarTimeout);
         if (window.innerWidth > 768) {
             navbar.classList.add("hidden");
-            grid?.classList.remove("navbar-visible");
         }
         suspendOtherStreams(id);
-        const camera = cameras.find((c) => c.id === id);
+        const camera = camerasMap.get(id);
         const displayName = camera?.name || "";
         announce(`${displayName} - fullscreen view`);
     } else {
@@ -607,14 +564,12 @@ function scheduleNavbarHide() {
     navbarTimeout = setTimeout(() => {
         navbar.classList.add("hidden");
         document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.add("hidden-nav"));
-        grid?.classList.remove("navbar-visible");
     }, delay);
 }
 
 function showNavbar() {
     navbar.classList.remove("hidden");
     document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("hidden-nav"));
-    grid?.classList.add("navbar-visible");
     clearTimeout(navbarTimeout);
     scheduleNavbarHide();
 }
@@ -954,19 +909,6 @@ function initFilterSheet() {
     });
 }
 
-function repositionNavbar() {
-    const isMobile = window.innerWidth <= 768;
-    const nav = document.getElementById("navbar");
-    const g = document.getElementById("camera-grid");
-    if (!nav || !g) return;
-    const insideGrid = g.contains(nav);
-    if (isMobile && !insideGrid) {
-        g.insertBefore(nav, g.firstChild);
-    } else if (!isMobile && insideGrid) {
-        g.parentNode.insertBefore(nav, g);
-    }
-}
-
 function initNavButtons() {
     const frag = document.createDocumentFragment();
     const prevBtn = document.createElement("button");
@@ -1001,7 +943,6 @@ statusFilter?.addEventListener("focus", () => {
 statusFilter?.addEventListener("blur", scheduleNavbarHide);
 
 window.addEventListener("resize", debounce(() => {
-    repositionNavbar();
     applyFilters();
 }, 150));
 
@@ -1011,21 +952,30 @@ window.addEventListener("beforeunload", () => {
     if (observer) observer.disconnect();
 });
 
-cameras.forEach((c) => {
-    currentCameraStates[c.id] = c.status;
-});
+function initPage() {
+    cameras.forEach((c) => {
+        currentCameraStates[c.id] = c.status;
+    });
 
-document.getElementById("refresh-btn")?.addEventListener("click", () => {
-    pollLocalJson();
-});
+    document.querySelectorAll(".camera-cell").forEach((cell) => {
+        if (cell.dataset.status === "online") {
+            cell.style.order = "-1";
+        }
+    });
 
-telemetry.init();
-loadSelection();
-initNavButtons();
-initFilterSheet();
-initSelectionPanel();
-repositionNavbar();
-buildGrid();
-applyFilters();
-showNavbar();
-setInterval(pollLocalJson, 15000);
+    document.getElementById("refresh-btn")?.addEventListener("click", () => {
+        pollLocalJson();
+    });
+
+    telemetry.init();
+    loadSelection();
+    initNavButtons();
+    initFilterSheet();
+    initSelectionPanel();
+    initObserver();
+    applyFilters();
+    showNavbar();
+    setInterval(pollLocalJson, 15000);
+}
+
+initPage();
