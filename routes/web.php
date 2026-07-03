@@ -13,7 +13,7 @@ Route::get('/', [MonitoringController::class, 'index']);
 Route::post('/api/telemetry', [TelemetryController::class, 'store']);
 
 Route::get('/cameras.json', function (CameraExport $export) {
-    $data = Cache::remember('cameras_json', 60, function () use ($export) {
+    $data = Cache::remember('cameras_json', 5, function () use ($export) {
         $path = storage_path('app/public/cameras.json');
         if (!File::exists($path)) {
             try {
@@ -33,7 +33,7 @@ Route::get('/cameras.json', function (CameraExport $export) {
     }
 
     return response()->json($data, 200, [
-        'Cache-Control' => 'public, max-age=60',
+        'Cache-Control' => 'public, max-age=5',
     ]);
 });
 

@@ -43,13 +43,6 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                Widgets\AccountWidget::class,
-                TelemetryStatsOverview::class,
-                EventTypeDistributionChart::class,
-                TopErrorCamerasChart::class,
-                AverageBitrateChart::class,
-                RecentTelemetryTable::class,
-                CameraQualitySummaryTable::class,
             ])
             ->middleware([
                 EncryptCookies::class,

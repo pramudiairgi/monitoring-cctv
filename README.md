@@ -1,58 +1,152 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# CCTV Monitoring
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Real-time CCTV monitoring dashboard with HLS stream playback, camera health checks, and telemetry collection.
 
-## About Laravel
+## Tech Stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Backend:** Laravel 13 + PHP 8.4
+- **Database:** PostgreSQL 15 (Docker)
+- **Frontend:** Blade + Tailwind CSS 4 + Vite 8 + hls.js
+- **Queue:** Database driver
+- **Admin:** Filament 3
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Requirements
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- PHP 8.4+
+- PostgreSQL 15+
+- Node.js 18+ (check `.nvmrc`)
+- Composer
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Quick Start
 
 ```bash
-composer require laravel/boost --dev
+# Clone & setup
+git clone <repo-url>
+cd monitoring-cctv
+composer setup          # install + migrate + npm build
 
-php artisan boost:install
+# Start development
+npm run dev:full        # server + queue + logs + vite
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### npm Scripts
 
-## Contributing
+| Script               | Description                                    |
+| -------------------- | ---------------------------------------------- |
+| `npm run dev:full`   | Start all services (server, queue, logs, vite) |
+| `npm run dev`        | Vite only                                      |
+| `npm run dev:server` | PHP artisan serve                              |
+| `npm run dev:queue`  | Queue worker                                   |
+| `npm run dev:logs`   | Log viewer (pail)                              |
+| `npm run build`      | Production build                               |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Docker (PostgreSQL)
 
-## Code of Conduct
+```bash
+docker run -d \
+  --name cctv_container \
+  -e POSTGRES_USER=cctv \
+  -e POSTGRES_PASSWORD=rahasia123 \
+  -e POSTGRES_DB=cctv_db \
+  -p 5432:5432 \
+  postgres:15-alpine
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Environment
 
-## Security Vulnerabilities
+Copy `.env.example` to `.env` and configure:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=cctv_db
+DB_USERNAME=cctv
+DB_PASSWORD=rahasia123
+
+QUEUE_CONNECTION=database
+```
+
+## Artisan Commands
+
+| Command                             | Description                                               | Schedule     |
+| ----------------------------------- | --------------------------------------------------------- | ------------ |
+| `cameras:check-status`              | Probe stream URLs (parallel), update camera status        | Every minute |
+| `cameras:check-status --only=14,16` | Check specific cameras only                               | Manual       |
+| `cameras:export`                    | Export cameras to JSON (called by check-status on change) | On demand    |
+| `telemetry:prune --hours=6`         | Delete telemetry older than N hours                       | Every hour   |
+
+## Schedule
+
+Defined in `routes/console.php`:
+
+```php
+Schedule::command('cameras:check-status')->everyMinute()->withoutOverlapping();
+Schedule::command('telemetry:prune --hours=6')->hourly();
+```
+
+## API Endpoints
+
+| Method | Endpoint         | Description              |
+| ------ | ---------------- | ------------------------ |
+| GET    | `/`              | Monitoring dashboard     |
+| GET    | `/cameras.json`  | Camera list (cached 60s) |
+| POST   | `/api/telemetry` | Submit telemetry data    |
+| GET    | `/up`            | Health check             |
+
+## Database Schema
+
+### Tables
+
+| Table              | Description                            |
+| ------------------ | -------------------------------------- |
+| `cameras`          | CCTV camera configurations             |
+| `categories`       | Camera categories                      |
+| `stream_telemetry` | Stream health telemetry (6h retention) |
+| `jobs`             | Queue jobs                             |
+| `failed_jobs`      | Failed queue jobs                      |
+
+## Production Deployment
+
+### Supervisor
+
+Queue workers and scheduler managed by Supervisor:
+
+```ini
+[program:monitoring-queue]
+command=php /var/www/monitoring-cctv/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+numprocs=2
+
+[program:laravel-schedule]
+command=php /var/www/monitoring-cctv/artisan schedule:work
+```
+
+### Nginx
+
+See `deploy/nginx.conf` for Nginx configuration with:
+
+- Gzip compression
+- Security headers
+- Static asset caching (30 days)
+- PHP-FPM configuration
+
+### Deploy
+
+```bash
+bash deploy/deploy.sh
+```
+
+## Project Structure
+
+```
+app/
+├── Console/Commands/      # Artisan commands
+├── Http/Controllers/      # API & web controllers
+├── Jobs/                  # Queue jobs
+├── Models/                # Eloquent models
+└── Services/              # Business logic (CameraExport)
+```
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT
