@@ -1,8 +1,8 @@
 import Hls from "hls.js";
 
-const RECONNECT_DELAYS = [2000, 4000, 8000, 15000, 30000];
-const RECONNECT_MAX = 5;
-const STALE_TIMEOUT = 20000;
+const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 15000];
+const RECONNECT_MAX = 999;
+const STALE_TIMEOUT = 30000;
 
 export default class StreamManager {
     constructor(cameraId, videoElement, streamUrl, telemetry, onOffline) {
@@ -36,13 +36,13 @@ export default class StreamManager {
     getConfig() {
         return {
             enableWorker: true,
-            lowLatencyMode: false,
-            useFetch: false,
-            liveSyncDuration: 40,
-            liveMaxLatencyDuration: 50,
-            maxBufferLength: 30,
-            maxMaxBufferLength: 60,
-            backbufferLength: 30,
+            lowLatencyMode: true,
+            useFetch: true,
+            liveSyncDuration: 4,
+            liveMaxLatencyDuration: 8,
+            maxBufferLength: 6,
+            maxMaxBufferLength: 12,
+            backbufferLength: 3,
             startFragPrefetch: true,
             startLevel: 0,
             abrEwmaDefaultEstimate: 500000,
@@ -53,11 +53,11 @@ export default class StreamManager {
             capLevelToPlayerSize: true,
             capLevelOnFPSDrop: true,
             renderNudge: true,
-            maxStarvationDelay: 30,
-            starvationDelay: 20,
+            maxStarvationDelay: 4,
+            starvationDelay: 2,
             nudgeOffset: 0.5,
             enableSoftNudge: false,
-            fragLoadingTimeOut: 20000,
+            fragLoadingTimeOut: 6000,
             liveDurationInfinity: true,
         };
     }

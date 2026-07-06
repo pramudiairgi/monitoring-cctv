@@ -22,7 +22,7 @@ let initQueue = new Map();
 let observer = null;
 let _polling = false;
 let _statusChanged = false;
-const STREAM_CONCURRENCY = 3;
+const STREAM_CONCURRENCY = 6;
 let _activeStreamInit = 0;
 let _streamQueue = [];
 
@@ -975,7 +975,7 @@ function initPage() {
     initObserver();
     applyFilters();
     showNavbar();
-    setInterval(pollLocalJson, 15000);
+    setInterval(pollLocalJson, 8000);
 }
 
 initPage();
