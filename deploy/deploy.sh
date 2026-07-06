@@ -157,14 +157,10 @@ ok "Composer dependencies installed"
 info "[7/10] Building frontend assets..."
 
 if [ -f package.json ]; then
-  if [ ! -d node_modules ]; then
-    retry 3 npm ci --no-ansi \
-      || warn "npm ci failed — trying npm install"
-    [ ! -d node_modules ] && retry 3 npm install --no-ansi \
-      || warn "npm install also failed"
-  else
-    skip "node_modules exists — skipping npm ci"
-  fi
+  retry 3 npm ci --no-ansi \
+    || warn "npm ci failed — trying npm install"
+  [ ! -d node_modules ] && retry 3 npm install --no-ansi \
+    || warn "npm install also failed"
 
   if [ -d node_modules ]; then
     npm run build --no-ansi \
