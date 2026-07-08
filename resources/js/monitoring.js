@@ -186,6 +186,7 @@ function processStreamQueue() {
 }
 
 async function initStream(cell, camera, targetUrl) {
+    targetUrl = targetUrl || camera.stream_url;
     const video = cell.querySelector("video");
 
     if (camera.status !== "online") {
@@ -263,7 +264,7 @@ async function pollLocalJson() {
             if (statusChanged) _statusChanged = true;
 
             oldCam.status = newStatus;
-            oldCam.target_url = newCam.target_url;
+            if (newCam.target_url) oldCam.target_url = newCam.target_url;
 
             const cell = document.querySelector(
                 `.camera-cell[data-id="${newCam.id}"]`,
