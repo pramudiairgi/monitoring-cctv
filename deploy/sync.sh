@@ -1,6 +1,6 @@
 #!/bin/bash
 
-APP_DIR="/var/www/monitoring-cctv"
+APP_DIR="/www/wwwroot/live.polisihebat.org/monitoring-cctv"
 DOMAIN="live.polisihebat.org"
 BRANCH="main"
 

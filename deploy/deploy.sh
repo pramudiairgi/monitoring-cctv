@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ---- Config ----
-APP_DIR="/var/www/monitoring-cctv"
+APP_DIR="/www/wwwroot/live.polisihebat.org/monitoring-cctv"
 REPO_URL="https://github.com/pramudiairgi/monitoring-cctv"
 BRANCH="main"
 DOMAIN="live.polisihebat.org"
