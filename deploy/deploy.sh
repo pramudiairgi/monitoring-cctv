@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ---- Config ----
-APP_DIR="/www/wwwroot/live.polisihebat.org/monitoring-cctv"
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_URL="https://github.com/pramudiairgi/monitoring-cctv"
 BRANCH="main"
 DOMAIN="live.polisihebat.org"
@@ -177,7 +177,7 @@ ok "Frontend assets processed"
 # ──────────────────────────── [8/10] Permissions ────────────────────────────
 info "[8/10] Setting permissions..."
 
-sudo chown -R www-data:www-data "$APP_DIR" \
+sudo chown -R www:www "$APP_DIR" \
   || fail "Cannot chown $APP_DIR"
 
 ok "Permissions set"
@@ -186,29 +186,29 @@ ok "Permissions set"
 info "[9/10] Running database migration and application init..."
 
 # Migration (CRITICAL — stop on failure)
-sudo -u www-data php artisan migrate --force \
+sudo -u www php artisan migrate --force \
   || fail "Migration failed — check database connection"
 
 # Post-migration steps (non-critical — warn on failure)
-sudo -u www-data php artisan storage:link 2>/dev/null \
+sudo -u www php artisan storage:link 2>/dev/null \
   || warn "storage:link failed (link may already exist)"
 
-sudo -u www-data php artisan config:cache 2>/dev/null \
+sudo -u www php artisan config:cache 2>/dev/null \
   || warn "config:cache failed"
 
-sudo -u www-data php artisan route:cache 2>/dev/null \
+sudo -u www php artisan route:cache 2>/dev/null \
   || warn "route:cache failed"
 
-sudo -u www-data php artisan view:cache 2>/dev/null \
+sudo -u www php artisan view:cache 2>/dev/null \
   || warn "view:cache failed"
 
-sudo -u www-data php artisan cache:clear 2>/dev/null \
+sudo -u www php artisan cache:clear 2>/dev/null \
   || warn "cache:clear failed"
 
-sudo -u www-data php artisan cameras:check-status 2>/dev/null \
+sudo -u www php artisan cameras:check-status 2>/dev/null \
   || warn "Initial camera probe failed (expected if no cameras yet)"
 
-sudo -u www-data php artisan cameras:export 2>/dev/null \
+sudo -u www php artisan cameras:export 2>/dev/null \
   || warn "Initial camera export failed"
 
 ok "Database migrated and application initialized"

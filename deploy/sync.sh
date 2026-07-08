@@ -1,6 +1,6 @@
 #!/bin/bash
 
-APP_DIR="/www/wwwroot/live.polisihebat.org/monitoring-cctv"
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DOMAIN="live.polisihebat.org"
 BRANCH="main"
 
@@ -14,7 +14,7 @@ echo -e "\n${B}━━━ Monitoring CCTV — Quick Sync ━━━${NC}\n"
 
 cd "$APP_DIR" || fail "Cannot cd to $APP_DIR"
 
-info "Ambil alih kepemilikan file (sebelumnya www-data)..."
+info "Ambil alih kepemilikan file (sebelumnya www)..."
 sudo chown -R "$USER:$USER" "$APP_DIR" || warn "Gagal chown ke user"
 
 info "Pull code dari $BRANCH..."
@@ -32,24 +32,24 @@ if [ -f package.json ]; then
 fi
 
 info "Migration..."
-sudo -u www-data php artisan migrate --force || fail "migration failed"
+sudo -u www php artisan migrate --force || fail "migration failed"
 
 info "Cache..."
-sudo -u www-data php artisan config:cache 2>/dev/null || warn "config:cache failed"
-sudo -u www-data php artisan route:cache 2>/dev/null || warn "route:cache failed"
-sudo -u www-data php artisan view:cache 2>/dev/null || warn "view:cache failed"
-sudo -u www-data php artisan cache:clear 2>/dev/null || warn "cache:clear failed"
+sudo -u www php artisan config:cache 2>/dev/null || warn "config:cache failed"
+sudo -u www php artisan route:cache 2>/dev/null || warn "route:cache failed"
+sudo -u www php artisan view:cache 2>/dev/null || warn "view:cache failed"
+sudo -u www php artisan cache:clear 2>/dev/null || warn "cache:clear failed"
 
 info "Camera check & export..."
-sudo -u www-data php artisan cameras:check-status 2>/dev/null || warn "check-status failed"
-sudo -u www-data php artisan cameras:export 2>/dev/null || warn "export failed"
+sudo -u www php artisan cameras:check-status 2>/dev/null || warn "check-status failed"
+sudo -u www php artisan cameras:export 2>/dev/null || warn "export failed"
 
 info "Restart services..."
 sudo systemctl reload nginx 2>/dev/null || sudo systemctl restart nginx || warn "nginx restart failed"
 sudo systemctl restart php8.4-fpm 2>/dev/null || warn "php-fpm restart failed"
 
-info "Kembalikan kepemilikan ke www-data..."
-sudo chown -R www-data:www-data "$APP_DIR" || warn "chown gagal"
+info "Kembalikan kepemilikan ke www..."
+sudo chown -R www:www "$APP_DIR" || warn "chown gagal"
 
 echo -e "\n${G}━━━ Sync Complete ━━━${NC}"
 echo -e "  ${B}Site:${NC}  https://$DOMAIN"
