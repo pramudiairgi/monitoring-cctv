@@ -44,7 +44,7 @@ class CameraResource extends Resource
                 TextInput::make('adaptive_url')
                     ->url()
                     ->maxLength(255)
-                    ->helperText('URL _adaptive.m3u8 untuk ABR support (Wowza)'),
+                    ->helperText('URL _adaptive.m3u8 (optional)'),
 
                 Select::make('category_id')
                     ->relationship('category', 'name')
@@ -76,7 +76,7 @@ class CameraResource extends Resource
                     ->sortable(),
 
                 TextColumn::make('status')
-                    ->badge(fn (string $state): string => match ($state) {
+                    ->badge(fn(string $state): string => match ($state) {
                         'online' => 'success',
                         'offline' => 'danger',
                     }),
@@ -89,11 +89,6 @@ class CameraResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->groups([
-                'category.name',
-                'status',
-            ])
-            ->defaultGroup('category.name')
             ->filters([
                 //
             ])
@@ -101,12 +96,12 @@ class CameraResource extends Resource
                 EditAction::make(),
                 DeleteAction::make(),
                 Action::make('toggleStatus')
-                    ->icon(fn (Camera $record): string => $record->status === 'online' ? 'heroicon-m-x-mark' : 'heroicon-m-check')
-                    ->label(fn (Camera $record): string => $record->status === 'online' ? 'Set Offline' : 'Set Online')
-                    ->action(fn (Camera $record) => $record->update([
+                    ->icon(fn(Camera $record): string => $record->status === 'online' ? 'heroicon-m-x-mark' : 'heroicon-m-check')
+                    ->label(fn(Camera $record): string => $record->status === 'online' ? 'Set Offline' : 'Set Online')
+                    ->action(fn(Camera $record) => $record->update([
                         'status' => $record->status === 'online' ? 'offline' : 'online',
                     ]))
-                    ->color(fn (Camera $record): string => $record->status === 'online' ? 'danger' : 'success'),
+                    ->color(fn(Camera $record): string => $record->status === 'online' ? 'danger' : 'success'),
             ])
             ->bulkActions([
                 BulkActionGroup::make([

@@ -116,4 +116,59 @@ class CameraCheckStatusCommandTest extends TestCase
         $this->assertEquals('offline', Camera::find(2)?->status);
         $this->assertEquals('online', Camera::find(3)?->status);
     }
+
+    public function test_resets_target_url_when_stream_url_changes(): void
+    {
+        Http::fake([
+            'https://example.com/old-stream.m3u8' => Http::response('', 200),
+            'https://example.com/new-stream.m3u8' => Http::response('', 200),
+        ]);
+
+        $camera = Camera::factory()->create([
+            'stream_url' => 'https://example.com/old-stream.m3u8',
+            'adaptive_url' => null,
+            'target_url' => 'https://example.com/old-stream.m3u8',
+            'status' => 'online',
+            'category_id' => $this->category->id,
+        ]);
+
+        $camera->stream_url = 'https://example.com/new-stream.m3u8';
+        $camera->save();
+
+        $camera->refresh();
+        $this->assertNull($camera->target_url);
+    }
+
+    public function test_preserves_target_url_when_unrelated_field_changes(): void
+    {
+        $camera = Camera::factory()->create([
+            'stream_url' => 'https://example.com/stream.m3u8',
+            'adaptive_url' => null,
+            'target_url' => 'https://example.com/stream.m3u8',
+            'name' => 'Old Name',
+            'status' => 'online',
+            'category_id' => $this->category->id,
+        ]);
+
+        $camera->name = 'New Name';
+        $camera->save();
+
+        $camera->refresh();
+        $this->assertEquals('https://example.com/stream.m3u8', $camera->target_url);
+    }
+
+    public function test_pool_exception_does_not_crash_command(): void
+    {
+        Http::fake(function () {
+            throw new \Exception('Unexpected pool error');
+        });
+
+        Camera::factory()->create([
+            'stream_url' => 'https://example.com/stream.m3u8',
+            'status' => 'offline',
+            'category_id' => $this->category->id,
+        ]);
+
+        $this->artisan('cameras:check-status')->assertSuccessful();
+    }
 }

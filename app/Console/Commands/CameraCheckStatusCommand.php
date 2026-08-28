@@ -39,14 +39,19 @@ class CameraCheckStatusCommand extends Command
             }
         }
 
-        $responses = Http::pool(function (Pool $pool) use ($requests) {
-            foreach ($requests as $req) {
-                $url = $req['type'] === 'adaptive'
-                    ? $req['camera']->adaptive_url
-                    : $req['camera']->stream_url;
-                $pool->timeout(5)->get($url);
-            }
-        });
+        $responses = [];
+        try {
+            $responses = Http::pool(function (Pool $pool) use ($requests) {
+                foreach ($requests as $req) {
+                    $url = $req['type'] === 'adaptive'
+                        ? $req['camera']->adaptive_url
+                        : $req['camera']->stream_url;
+                    $pool->timeout(5)->get($url);
+                }
+            });
+        } catch (\Throwable $e) {
+            $this->error('HTTP pool request failed: ' . $e->getMessage());
+        }
 
         $changed = 0;
         $responseIndex = 0;
