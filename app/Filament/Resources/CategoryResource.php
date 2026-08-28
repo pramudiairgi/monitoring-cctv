@@ -2,17 +2,20 @@
 
 namespace App\Filament\Resources;
 
+use Filament\Schemas\Schema;
+use Filament\Actions\EditAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use App\Filament\Resources\CategoryResource\Pages\ListCategories;
+use App\Filament\Resources\CategoryResource\Pages\CreateCategory;
+use App\Filament\Resources\CategoryResource\Pages\EditCategory;
 use App\Filament\Resources\CategoryResource\Pages;
 use App\Models\Category;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
 use Filament\Forms;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
-use Filament\Tables\Actions\BulkActionGroup;
-use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -20,7 +23,7 @@ class CategoryResource extends Resource
 {
     protected static ?string $model = Category::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-tag';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-tag';
 
     protected static ?string $navigationLabel = 'Categories';
 
@@ -28,10 +31,10 @@ class CategoryResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Categories';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
+        return $schema
+            ->components([
                 TextInput::make('name')
                     ->required()
                     ->maxLength(255),
@@ -65,11 +68,11 @@ class CategoryResource extends Resource
             ->filters([
                 //
             ])
-            ->actions([
+            ->recordActions([
                 EditAction::make(),
                 DeleteAction::make(),
             ])
-            ->bulkActions([
+            ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
@@ -84,9 +87,9 @@ class CategoryResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListCategories::route('/'),
-            'create' => Pages\CreateCategory::route('/create'),
-            'edit' => Pages\EditCategory::route('/{record}/edit'),
+            'index' => ListCategories::route('/'),
+            'create' => CreateCategory::route('/create'),
+            'edit' => EditCategory::route('/{record}/edit'),
         ];
     }
 }

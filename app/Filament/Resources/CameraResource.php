@@ -2,17 +2,20 @@
 
 namespace App\Filament\Resources;
 
+use Filament\Schemas\Schema;
+use Filament\Actions\EditAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use App\Filament\Resources\CameraResource\Pages\ListCameras;
+use App\Filament\Resources\CameraResource\Pages\CreateCamera;
+use App\Filament\Resources\CameraResource\Pages\EditCamera;
 use App\Filament\Resources\CameraResource\Pages;
 use App\Models\Camera;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables\Actions\BulkActionGroup;
-use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -20,7 +23,7 @@ class CameraResource extends Resource
 {
     protected static ?string $model = Camera::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-video-camera';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-video-camera';
 
     protected static ?string $navigationLabel = 'Cameras';
 
@@ -28,10 +31,10 @@ class CameraResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Cameras';
 
-    public static function form(Form $form): Form
+    public static function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
+        return $schema
+            ->components([
                 TextInput::make('name')
                     ->required()
                     ->maxLength(255),
@@ -92,7 +95,7 @@ class CameraResource extends Resource
             ->filters([
                 //
             ])
-            ->actions([
+            ->recordActions([
                 EditAction::make(),
                 DeleteAction::make(),
                 Action::make('toggleStatus')
@@ -103,7 +106,7 @@ class CameraResource extends Resource
                     ]))
                     ->color(fn(Camera $record): string => $record->status === 'online' ? 'danger' : 'success'),
             ])
-            ->bulkActions([
+            ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
@@ -118,9 +121,9 @@ class CameraResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListCameras::route('/'),
-            'create' => Pages\CreateCamera::route('/create'),
-            'edit' => Pages\EditCamera::route('/{record}/edit'),
+            'index' => ListCameras::route('/'),
+            'create' => CreateCamera::route('/create'),
+            'edit' => EditCamera::route('/{record}/edit'),
         ];
     }
 }

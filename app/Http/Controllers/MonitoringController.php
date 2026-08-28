@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Exception;
 use App\Services\CameraExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -17,7 +18,7 @@ class MonitoringController extends Controller
             if (!File::exists($path)) {
                 try {
                     $export->handle();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     /* DB not ready yet — return empty view */
                 }
             }

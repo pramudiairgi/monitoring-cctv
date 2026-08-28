@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use Throwable;
 use App\Models\Camera;
 use App\Services\CameraExport;
 use Illuminate\Console\Command;
@@ -49,7 +50,7 @@ class CameraCheckStatusCommand extends Command
                     $pool->timeout(5)->get($url);
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->error('HTTP pool request failed: ' . $e->getMessage());
         }
 
