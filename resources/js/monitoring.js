@@ -1,6 +1,27 @@
 const DATA_SCRIPT = document.getElementById("monitoring-data");
 const CAMERAS = DATA_SCRIPT ? JSON.parse(DATA_SCRIPT.textContent) : [];
 
+const PLAYBACK_CONFIG_SCRIPT = document.getElementById("playback-config");
+let PLAYBACK_CONFIG = {};
+try {
+    PLAYBACK_CONFIG = PLAYBACK_CONFIG_SCRIPT
+        ? JSON.parse(PLAYBACK_CONFIG_SCRIPT.textContent)
+        : {};
+} catch {
+    PLAYBACK_CONFIG = {};
+}
+
+function playbackInt(key, fallback) {
+    const raw = PLAYBACK_CONFIG[key];
+    const parsed = typeof raw === "number" ? raw : parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function playbackString(key, fallback) {
+    const raw = PLAYBACK_CONFIG[key];
+    return typeof raw === "string" && raw.length > 0 ? raw : fallback;
+}
+
 const NAVBAR_HIDE_DELAY = 2000;
 const NAVBAR_HIDE_DELAY_GRID = 2000;
 const TELEMETRY_ENDPOINT = "/api/telemetry";
@@ -23,11 +44,20 @@ let observer = null;
 let _polling = false;
 let _statusChanged = false;
 const STREAM_CONCURRENCY = 6;
-const MAX_AUTO_PLAY_DESKTOP = 9;
-const MAX_AUTO_PLAY_MOBILE_PORTRAIT = 4;
-const MAX_AUTO_PLAY_MOBILE_LANDSCAPE = 6;
-const STAGGER_DELAY_MS = 350;
-const PRIORITY_CATEGORY = "patroli";
+const MAX_AUTO_PLAY_DESKTOP = playbackInt("playback_max_desktop", 9);
+const MAX_AUTO_PLAY_MOBILE_PORTRAIT = playbackInt(
+    "playback_max_mobile_portrait",
+    4,
+);
+const MAX_AUTO_PLAY_MOBILE_LANDSCAPE = playbackInt(
+    "playback_max_mobile_landscape",
+    6,
+);
+const STAGGER_DELAY_MS = playbackInt("playback_stagger_ms", 350);
+const PRIORITY_CATEGORY = playbackString(
+    "playback_priority_category",
+    "patroli",
+);
 let _activeStreamInit = 0;
 let _streamQueue = [];
 

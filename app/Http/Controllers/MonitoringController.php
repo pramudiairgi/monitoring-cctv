@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Exception;
+use App\Models\Setting;
 use App\Services\CameraExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -35,6 +36,13 @@ class MonitoringController extends Controller
         return view('monitoring', [
             'cameras' => $data['cameras'] ?? [],
             'categories' => $data['categories'] ?? [],
+            'playbackSettings' => [
+                'playback_max_desktop' => (int) Setting::get('playback_max_desktop', 9),
+                'playback_max_mobile_landscape' => (int) Setting::get('playback_max_mobile_landscape', 6),
+                'playback_max_mobile_portrait' => (int) Setting::get('playback_max_mobile_portrait', 4),
+                'playback_stagger_ms' => (int) Setting::get('playback_stagger_ms', 350),
+                'playback_priority_category' => (string) Setting::get('playback_priority_category', 'patroli'),
+            ],
         ]);
     }
 }

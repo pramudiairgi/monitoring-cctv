@@ -117,4 +117,5 @@
   <div id="announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
   <script id="monitoring-data" type="application/json">@json($cameras)</script>
+  <script id="playback-config" type="application/json">@json($playbackSettings ?? [])</script>
 @endsection
