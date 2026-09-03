@@ -31,3 +31,6 @@ Thumbs.db
 .opencode
 AGENT.md
 docs
+.omo
+.agents
+skills-lock.json
