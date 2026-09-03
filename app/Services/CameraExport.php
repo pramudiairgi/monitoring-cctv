@@ -63,12 +63,11 @@ class CameraExport
     private function resolveTargetUrl(Camera $camera): string
     {
         $validTargets = array_filter([
-            $camera->target_url,
-            $camera->adaptive_url,
             $camera->stream_url,
+            $camera->adaptive_url,
         ]);
 
-        if (in_array($camera->target_url, $validTargets, true) && $camera->target_url) {
+        if ($camera->target_url && in_array($camera->target_url, $validTargets, true)) {
             return $camera->target_url;
         }
 

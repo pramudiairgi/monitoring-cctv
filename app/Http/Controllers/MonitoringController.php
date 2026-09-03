@@ -7,6 +7,7 @@ use App\Services\CameraExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class MonitoringController extends Controller
 {
@@ -19,7 +20,8 @@ class MonitoringController extends Controller
                 try {
                     $export->handle();
                 } catch (Exception $e) {
-                    /* DB not ready yet — return empty view */
+                    report($e);
+                    Log::warning('Camera export failed, serving empty monitoring view', ['exception' => $e->getMessage()]);
                 }
             }
 
