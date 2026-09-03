@@ -298,10 +298,51 @@ async function initStream(cell, camera, targetUrl) {
     processStreamQueue();
 }
 
+function createCameraCell(camera) {
+    const cell = document.createElement("div");
+    cell.className = "camera-cell";
+    cell.dataset.id = String(camera.id);
+    cell.dataset.name = (camera.name || "").toLowerCase();
+    cell.dataset.category = camera.category || "";
+    cell.dataset.status = camera.status || "offline";
+    cell.tabIndex = 0;
+    cell.setAttribute("role", "button");
+    cell.setAttribute("aria-label", `${camera.name || ""} - ${camera.status || ""}`);
+    if (camera.status === "online") {
+        cell.style.order = "-1";
+    }
+    cell.innerHTML = `
+        <div class="camera-placeholder">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2" y="4" width="20" height="16" rx="2"/>
+            <path d="M10 9l5 3-5 3V9z"/>
+          </svg>
+          <span class="placeholder-text">Loading stream...</span>
+          <span class="placeholder-caption">${escapeHtml(camera.name || "")}</span>
+        </div>
+        <video muted autoplay playsinline></video>
+        <div class="camera-placeholder-info">
+          <span class="status-badge ${escapeHtml(camera.status || "offline")}">${escapeHtml(camera.name || "")} - ${escapeHtml(camera.status || "")}</span>
+        </div>
+        <button class="fullscreen-close" aria-label="Exit fullscreen">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+          </svg>
+        </button>`;
+    const video = cell.querySelector("video");
+    if (video) {
+        video.muted = true;
+        video.autoplay = true;
+        video.playsInline = true;
+    }
+    return cell;
+}
+
 async function pollLocalJson() {
     if (document.hidden) return;
     if (_polling) return;
     _polling = true;
+    const newCameras = [];
     try {
         const res = await fetch("/cameras.json", { priority: "low" });
         if (!res.ok) return;
@@ -309,7 +350,27 @@ async function pollLocalJson() {
 
         for (const newCam of data.cameras) {
             const oldCam = camerasMap.get(newCam.id);
-            if (!oldCam) continue;
+            if (!oldCam) {
+                const camera = {
+                    id: newCam.id,
+                    name: newCam.name,
+                    stream_url: newCam.stream_url,
+                    adaptive_url: newCam.adaptive_url || null,
+                    target_url: newCam.target_url || newCam.stream_url,
+                    category: newCam.category || "",
+                    status: newCam.status,
+                };
+                cameras.push(camera);
+                camerasMap.set(camera.id, camera);
+                cameraNames.set(camera.id, camera.name);
+                currentCameraStates[camera.id] = camera.status;
+                const cell = createCameraCell(camera);
+                grid.appendChild(cell);
+                if (observer) observer.observe(cell);
+                newCameras.push(camera);
+                _statusChanged = true;
+                continue;
+            }
 
             const prevStatus = currentCameraStates[newCam.id];
             const newStatus = newCam.status;
@@ -366,6 +427,28 @@ async function pollLocalJson() {
         if (_statusChanged) {
             _statusChanged = false;
             applyFilters();
+            if (newCameras.length > 0) {
+                newCameras
+                    .sort((a, b) => {
+                        const pa = isPriorityCamera(a) ? 0 : 1;
+                        const pb = isPriorityCamera(b) ? 0 : 1;
+                        if (pa !== pb) return pa - pb;
+                        return cameraPriority(a) - cameraPriority(b);
+                    })
+                    .forEach((camera, index) => {
+                        setTimeout(() => {
+                            if (camera.status !== "online") return;
+                            if (streamManagers.has(camera.id) || initQueue.has(camera.id))
+                                return;
+                            if (streamManagers.size >= getMaxAutoPlay()) return;
+                            const cell = document.querySelector(
+                                `.camera-cell[data-id="${camera.id}"]`,
+                            );
+                            if (!cell || cell.style.display === "none") return;
+                            initStream(cell, camera, camera.target_url);
+                        }, index * STAGGER_DELAY_MS);
+                    });
+            }
         }
     } catch {
         /* silent */
