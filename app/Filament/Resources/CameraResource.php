@@ -14,6 +14,7 @@ use App\Filament\Resources\CameraResource\Pages\EditCamera;
 use App\Filament\Resources\CameraResource\Pages;
 use App\Models\Camera;
 use App\Models\User;
+use App\Rules\PublicHttpUrl;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
@@ -80,10 +81,12 @@ class CameraResource extends Resource
                 TextInput::make('stream_url')
                     ->required()
                     ->url()
+                    ->rule(new PublicHttpUrl())
                     ->maxLength(255),
 
                 TextInput::make('adaptive_url')
                     ->url()
+                    ->rule(new PublicHttpUrl())
                     ->maxLength(255)
                     ->helperText('URL _adaptive.m3u8 (optional)'),
 

@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Throwable;
 use App\Models\Camera;
+use App\Rules\PublicHttpUrl;
 use App\Services\CameraExport;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
@@ -32,38 +33,48 @@ class CameraCheckStatusCommand extends Command
             return Command::SUCCESS;
         }
 
-        $requests = [];
+        $safeRequests = [];
         foreach ($cameras as $camera) {
-            $requests[] = ['camera' => $camera, 'type' => 'stream'];
+            if (PublicHttpUrl::isAllowed($camera->stream_url)) {
+                $safeRequests[] = ['camera' => $camera, 'type' => 'stream', 'url' => $camera->stream_url];
+            } else {
+                $this->warn("Camera [{$camera->name}]: skipping unsafe stream_url, marking offline.");
+            }
             if ($camera->adaptive_url) {
-                $requests[] = ['camera' => $camera, 'type' => 'adaptive'];
+                if (PublicHttpUrl::isAllowed($camera->adaptive_url)) {
+                    $safeRequests[] = ['camera' => $camera, 'type' => 'adaptive', 'url' => $camera->adaptive_url];
+                } else {
+                    $this->warn("Camera [{$camera->name}]: skipping unsafe adaptive_url.");
+                }
             }
         }
 
         $responses = [];
         try {
-            $responses = Http::pool(function (Pool $pool) use ($requests) {
-                foreach ($requests as $req) {
-                    $url = $req['type'] === 'adaptive'
-                        ? $req['camera']->adaptive_url
-                        : $req['camera']->stream_url;
-                    $pool->timeout(5)->get($url);
+            $responses = Http::pool(function (Pool $pool) use ($safeRequests) {
+                foreach ($safeRequests as $req) {
+                    $pool->withoutRedirecting()->timeout(5)->get($req['url']);
                 }
             });
         } catch (Throwable $e) {
             $this->error('HTTP pool request failed: ' . $e->getMessage());
         }
 
-        $changed = 0;
-        $responseIndex = 0;
-        foreach ($cameras as $camera) {
-            $streamResponse = $responses[$responseIndex++] ?? null;
-            $streamOnline = $streamResponse instanceof Response && $streamResponse->successful();
+        // Map pooled responses back to camera+type in request order.
+        // URLs that failed the SSRF guard were never fetched and stay offline.
+        $onlineByKey = [];
+        foreach ($safeRequests as $index => $req) {
+            $response = $responses[$index] ?? null;
+            $onlineByKey[$req['camera']->id . ':' . $req['type']] =
+                $response instanceof Response && $response->successful();
+        }
 
+        $changed = 0;
+        foreach ($cameras as $camera) {
+            $streamOnline = $onlineByKey[$camera->id . ':stream'] ?? false;
             $adaptiveOnline = false;
             if ($camera->adaptive_url) {
-                $adaptiveResponse = $responses[$responseIndex++] ?? null;
-                $adaptiveOnline = $adaptiveResponse instanceof Response && $adaptiveResponse->successful();
+                $adaptiveOnline = $onlineByKey[$camera->id . ':adaptive'] ?? false;
             }
 
             $oldStatus = $camera->status;
