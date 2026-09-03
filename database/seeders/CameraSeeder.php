@@ -149,7 +149,9 @@ class CameraSeeder extends Seeder
                 continue;
             }
 
-            Camera::updateOrCreate(
+            // Create-only defaults: status / order / target_url must never be
+            // overwritten on re-deploy, or live health-check state flips back.
+            $camera = Camera::firstOrCreate(
                 ['name' => $cam['name']],
                 [
                     'stream_url' => $cam['stream_url'],
@@ -160,6 +162,26 @@ class CameraSeeder extends Seeder
                     'order' => $cam['order'],
                 ]
             );
+
+            // On existing rows only refresh catalogue wiring (URLs, category).
+            if (! $camera->wasRecentlyCreated) {
+                $camera->fill([
+                    'stream_url' => $cam['stream_url'],
+                    'adaptive_url' => $cam['adaptive_url'],
+                    'category_id' => $category->id,
+                ]);
+
+                if ($camera->isDirty()) {
+                    $camera->save();
+                }
+            }
         }
+
+        // Prune retired catalogue entries left by earlier seeders. The live
+        // list above is authoritative: anything not in it is legacy.
+        $liveNames = collect($cameras)->pluck('name')->all();
+        Camera::whereNotIn('name', $liveNames)->delete();
+
+        Category::whereIn('slug', ['traffic', 'polsek', 'drone', 'public_facility'])->delete();
     }
 }

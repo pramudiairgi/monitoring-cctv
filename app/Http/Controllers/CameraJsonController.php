@@ -18,7 +18,7 @@ class CameraJsonController extends Controller
                 try {
                     $export->handle();
                 } catch (Exception $e) {
-                    /* DB not ready yet */
+                    report($e);
                 }
             }
             if (! File::exists($path)) {

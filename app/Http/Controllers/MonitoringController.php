@@ -14,7 +14,7 @@ class MonitoringController extends Controller
 {
     public function index(CameraExport $export)
     {
-        $data = Cache::remember('cameras_json', 60, function () use ($export) {
+        $data = Cache::remember('cameras_page', 60, function () use ($export) {
             $path = storage_path('app/public/cameras.json');
 
             if (!File::exists($path)) {

@@ -712,7 +712,10 @@ function handleFullscreenChange() {
         const displayName = camera?.name || "";
         announce(`${displayName} - fullscreen view`);
     } else {
-        if (fullscreenCameraId !== null) return;
+        if (fullscreenCameraId !== null) {
+            exitFullscreen();
+            return;
+        }
         document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("nav-visible"));
         showNavbar();
         resumeAllStreams();

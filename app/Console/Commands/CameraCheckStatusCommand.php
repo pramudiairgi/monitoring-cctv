@@ -33,15 +33,75 @@ class CameraCheckStatusCommand extends Command
             return Command::SUCCESS;
         }
 
+        // Per-run DNS cache: host (lowercased) => resolves. Collapses one
+        // lookup per URL into one lookup per host for the whole run.
+        $dnsCache = [];
+        $hostResolves = function (string $host) use (&$dnsCache): bool {
+            $key = strtolower($host);
+            if (! array_key_exists($key, $dnsCache)) {
+                if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+                    $dnsCache[$key] = true;
+                } else {
+                    $dnsCache[$key] = (gethostbynamel($host) ?: []) !== []
+                        || (dns_get_record($host, DNS_AAAA) ?: []) !== [];
+                }
+            }
+
+            return $dnsCache[$key];
+        };
+
+        // Per-run SSRF verdict cache: scheme://host => allowed. URLs sharing
+        // a host reuse the verdict instead of re-resolving DNS each time.
+        $allowCache = [];
+        $isAllowedCached = function (?string $url) use (&$allowCache): bool {
+            if (! is_string($url) || $url === '') {
+                return false;
+            }
+            $parts = parse_url($url);
+            if ($parts === false) {
+                return false;
+            }
+            $scheme = strtolower($parts['scheme'] ?? '');
+            $host = strtolower($parts['host'] ?? '');
+            if ($scheme === '' || $host === '') {
+                return false;
+            }
+            $key = $scheme.'://'.$host;
+            if (! array_key_exists($key, $allowCache)) {
+                $allowCache[$key] = PublicHttpUrl::isAllowed($url);
+            }
+
+            return $allowCache[$key];
+        };
+
         $safeRequests = [];
+        $skippedIds = [];
         foreach ($cameras as $camera) {
-            if (PublicHttpUrl::isAllowed($camera->stream_url)) {
+            // DNS resolution failure is transient: retain the previous status
+            // instead of flipping the camera offline.
+            $unresolved = false;
+            foreach (array_filter([$camera->stream_url, $camera->adaptive_url]) as $url) {
+                $host = is_string($url) ? parse_url($url, PHP_URL_HOST) : null;
+                if (is_string($host) && $host !== ''
+                    && filter_var($host, FILTER_VALIDATE_IP) === false
+                    && ! $hostResolves($host)) {
+                    $unresolved = true;
+                    break;
+                }
+            }
+            if ($unresolved) {
+                $this->warn("Camera [{$camera->name}]: DNS resolution failed, retaining status ({$camera->status}).");
+                $skippedIds[$camera->id] = true;
+                continue;
+            }
+
+            if ($isAllowedCached($camera->stream_url)) {
                 $safeRequests[] = ['camera' => $camera, 'type' => 'stream', 'url' => $camera->stream_url];
             } else {
                 $this->warn("Camera [{$camera->name}]: skipping unsafe stream_url, marking offline.");
             }
             if ($camera->adaptive_url) {
-                if (PublicHttpUrl::isAllowed($camera->adaptive_url)) {
+                if ($isAllowedCached($camera->adaptive_url)) {
                     $safeRequests[] = ['camera' => $camera, 'type' => 'adaptive', 'url' => $camera->adaptive_url];
                 } else {
                     $this->warn("Camera [{$camera->name}]: skipping unsafe adaptive_url.");
@@ -71,6 +131,10 @@ class CameraCheckStatusCommand extends Command
 
         $changed = 0;
         foreach ($cameras as $camera) {
+            if (isset($skippedIds[$camera->id])) {
+                continue;
+            }
+
             $streamOnline = $onlineByKey[$camera->id . ':stream'] ?? false;
             $adaptiveOnline = false;
             if ($camera->adaptive_url) {
