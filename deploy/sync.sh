@@ -2,7 +2,7 @@
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DOMAIN="live.polisihebat.org"
-BRANCH="upgrade/filament-v5"
+BRANCH="main"
 
 R='\033[0;31m'; G='\033[0;32m'; Y='\033[1;33m'; B='\033[1;34m'; NC='\033[0m'
 info()  { echo -e "${B}[${G}INFO${B}]${NC} $1"; }

@@ -3,7 +3,7 @@
 # ---- Config ----
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_URL="https://github.com/pramudiairgi/monitoring-cctv"
-BRANCH="upgrade/filament-v5"
+BRANCH="main"
 DOMAIN="live.polisihebat.org"
 
 # ---- Colors ----
