@@ -1,0 +1,7 @@
+# Nightly PostgreSQL backup — install with: crontab -e (as root or postgres)
+# Adjust APP_DIR / retention to taste. Requires pg_dump on PATH.
+#
+#   sudo cp deploy/backup-cron.example /etc/cron.d/cctv-backup
+#
+# m h dom mon dow user  command
+0 2 * * * postgres pg_dump -h 127.0.0.1 -p 5431 -U postgres cctv_monitoring | gzip > /var/backups/cctv/cctv_monitoring-$(date +\%F).sql.gz && find /var/backups/cctv -name 'cctv_monitoring-*.sql.gz' -mtime +7 -delete

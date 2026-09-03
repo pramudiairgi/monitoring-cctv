@@ -3,7 +3,7 @@
 # ---- Config ----
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_URL="https://github.com/pramudiairgi/monitoring-cctv"
-BRANCH="main"
+BRANCH="upgrade/filament-v5"
 DOMAIN="live.polisihebat.org"
 
 # ---- Colors ----
@@ -113,10 +113,17 @@ sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='cctv_monitor
   || sudo -u postgres psql -c "CREATE DATABASE cctv_monitoring" \
   || warn "Cannot create database (may already exist)"
 
-# Generate and set DB password
-DB_PASSWORD=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9')
-sudo -u postgres psql -c "ALTER USER postgres PASSWORD '${DB_PASSWORD}'" \
-  || fail "Cannot set PostgreSQL password"
+# Generate and set DB password (idempotent — only when creating .env, else reuse .env password)
+if [ -f "$APP_DIR/.env" ]; then
+  DB_PASSWORD=$(grep -E '^DB_PASSWORD=' "$APP_DIR/.env" | cut -d'=' -f2-)
+  [ -n "$DB_PASSWORD" ] || fail "Existing .env has empty DB_PASSWORD — refusing to continue"
+  skip "Reusing DB_PASSWORD from existing .env (no ALTER USER)"
+else
+  DB_PASSWORD=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9')
+  sudo -u postgres psql -c "ALTER USER postgres PASSWORD '${DB_PASSWORD}'" \
+    || fail "Cannot set PostgreSQL password"
+  ok "New PostgreSQL password generated and applied"
+fi
 
 # Ensure pg_hba.conf allows md5 for local TCP
 PG_HBA=$(sudo find /etc/postgresql -name pg_hba.conf 2>/dev/null | head -1)
@@ -132,11 +139,12 @@ ok "PostgreSQL ready — database 'cctv_monitoring' on port 5431"
 info "[5/10] Setting up environment..."
 
 if [ ! -f .env ]; then
-  [ -f deploy/.env.production ] || fail "deploy/.env.production not found"
-  cp deploy/.env.production .env || fail "Cannot copy .env.production"
+  [ -f deploy/.env.production.example ] || fail "deploy/.env.production.example not found"
+  cp deploy/.env.production.example .env || fail "Cannot copy .env.production.example"
   sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=${DB_PASSWORD}|" .env
   php artisan key:generate || fail "Cannot generate APP_KEY"
-  ok ".env created with random DB password and APP_KEY"
+  grep -q '^APP_DEBUG=false' .env || fail "APP_DEBUG is not false in .env — refusing to continue"
+  ok ".env created with random DB password and APP_KEY (APP_DEBUG=false asserted)"
 else
   skip ".env already exists — leaving unchanged"
 fi
@@ -189,9 +197,19 @@ info "[9/10] Running database migration and application init..."
 sudo -u www php artisan migrate --force \
   || fail "Migration failed — check database connection"
 
+sudo -u www php artisan db:seed --force 2>/dev/null \
+  || warn "db:seed failed (seeders may be empty)"
+
 # Post-migration steps (non-critical — warn on failure)
 sudo -u www php artisan storage:link 2>/dev/null \
   || warn "storage:link failed (link may already exist)"
+
+# Clear stale cache first, then rebuild
+sudo -u www php artisan cache:clear 2>/dev/null \
+  || warn "cache:clear failed"
+
+sudo -u www php artisan config:clear 2>/dev/null \
+  || warn "config:clear failed"
 
 sudo -u www php artisan config:cache 2>/dev/null \
   || warn "config:cache failed"
@@ -202,8 +220,8 @@ sudo -u www php artisan route:cache 2>/dev/null \
 sudo -u www php artisan view:cache 2>/dev/null \
   || warn "view:cache failed"
 
-sudo -u www php artisan cache:clear 2>/dev/null \
-  || warn "cache:clear failed"
+sudo -u www php artisan event:cache 2>/dev/null \
+  || warn "event:cache failed"
 
 sudo -u www php artisan cameras:check-status 2>/dev/null \
   || warn "Initial camera probe failed (expected if no cameras yet)"
@@ -216,9 +234,11 @@ ok "Database migrated and application initialized"
 # ──────────────────────────── [10/10] Services ────────────────────────────
 info "[10/10] Configuring nginx, supervisor, and SSL..."
 
-# Nginx
+# Nginx (template __APP_DIR__ on copy)
 sudo cp "$APP_DIR/deploy/nginx.conf" "/etc/nginx/sites-available/$DOMAIN" \
   || fail "Cannot copy nginx config"
+sudo sed -i "s|__APP_DIR__|${APP_DIR}|g" "/etc/nginx/sites-available/$DOMAIN" \
+  || fail "Cannot template nginx config with APP_DIR"
 sudo ln -sf "/etc/nginx/sites-available/$DOMAIN" /etc/nginx/sites-enabled/ \
   || warn "Cannot symlink nginx config"
 sudo rm -f /etc/nginx/sites-enabled/default
@@ -230,14 +250,25 @@ sudo nginx -t 2>/dev/null \
 sudo systemctl restart nginx || warn "Nginx restart failed"
 ok "Nginx configured"
 
-# Supervisor
+# Supervisor (template __APP_DIR__ on copy)
 sudo cp "$APP_DIR/deploy/supervisor.conf" /etc/supervisor/conf.d/monitoring-queue.conf \
   || warn "Cannot copy supervisor config"
+sudo sed -i "s|__APP_DIR__|${APP_DIR}|g" /etc/supervisor/conf.d/monitoring-queue.conf \
+  || warn "Cannot template supervisor config with APP_DIR"
 
 sudo supervisorctl reread 2>/dev/null || true
 sudo supervisorctl update 2>/dev/null || true
-sudo supervisorctl start laravel-schedule 2>/dev/null \
+sudo supervisorctl restart monitoring-queue:* 2>/dev/null \
+  || warn "Supervisor: monitoring-queue restart failed (may need manual start)"
+sudo supervisorctl restart laravel-schedule:* 2>/dev/null \
+  || sudo supervisorctl start laravel-schedule 2>/dev/null \
   || warn "Supervisor: laravel-schedule start failed (may need manual start)"
+sudo supervisorctl status monitoring-queue:* laravel-schedule:* 2>/dev/null \
+  || warn "Supervisor: status check failed"
+
+# Nightly pg_dump backups: sudo cp deploy/backup-cron.example /etc/cron.d/cctv-backup
+# Laravel log rotation: sudo cp deploy/logrotate.example /etc/logrotate.d/monitoring-cctv
+#   (then sed __APP_DIR__ to the real path — see deploy/logrotate.example header)
 
 ok "Supervisor configured"
 

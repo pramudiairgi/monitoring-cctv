@@ -45,10 +45,10 @@ npm run dev:full        # server + queue + logs + vite
 ```bash
 docker run -d \
   --name cctv_container \
-  -e POSTGRES_USER=cctv \
-  -e POSTGRES_PASSWORD=rahasia123 \
-  -e POSTGRES_DB=cctv_db \
-  -p 5432:5432 \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=<secret> \
+  -e POSTGRES_DB=cctv_monitoring \
+  -p 5431:5432 \
   postgres:15-alpine
 ```
 
@@ -59,13 +59,20 @@ Copy `.env.example` to `.env` and configure:
 ```env
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
-DB_PORT=5432
-DB_DATABASE=cctv_db
-DB_USERNAME=cctv
-DB_PASSWORD=rahasia123
+DB_PORT=5431
+DB_DATABASE=cctv_monitoring
+DB_USERNAME=postgres
+DB_PASSWORD=<secret>
 
 QUEUE_CONNECTION=database
 ```
+
+Production source of truth is `deploy/.env.production.example`
+(`DB_PORT=5431`, `DB_DATABASE=cctv_monitoring`).
+
+> Never commit real credentials. Use placeholders locally and a secret
+> manager (e.g. HashiCorp Vault, AWS Secrets Manager, Docker secrets, or
+> your platform's env/secret store) for production values.
 
 ## Artisan Commands
 
@@ -135,6 +142,13 @@ See `deploy/nginx.conf` for Nginx configuration with:
 ```bash
 bash deploy/deploy.sh
 ```
+
+Production env template: `deploy/.env.production.example` (placeholders only —
+`APP_ENV=production`, `APP_DEBUG=false`, `DB_PORT=5431`,
+`DB_DATABASE=cctv_monitoring`).
+
+Nightly backups: `deploy/backup-cron.example`. Log rotation:
+`deploy/logrotate.example`.
 
 ## Project Structure
 
