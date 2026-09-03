@@ -10,11 +10,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $categories = [
-            ['name' => 'Traffic', 'slug' => 'traffic'],
-            ['name' => 'Patroli', 'slug' => 'patroli'],
-            ['name' => 'Public Facility', 'slug' => 'public_facility'],
-            ['name' => 'Polsek', 'slug' => 'polsek'],
-            ['name' => 'Drone', 'slug' => 'drone'],
+            ['name' => 'LALIN', 'slug' => 'lalin'],
+            ['name' => 'PATROLI', 'slug' => 'patroli'],
+            ['name' => 'KANTOR PEMERINTAHAN', 'slug' => 'kantor-pemerintahan'],
         ];
 
         foreach ($categories as $cat) {
@@ -26,5 +24,6 @@ class DatabaseSeeder extends Seeder
 
         $this->call(UserSeeder::class);
         $this->call(CameraSeeder::class);
+        $this->call(SettingsSeeder::class);
     }
 }
