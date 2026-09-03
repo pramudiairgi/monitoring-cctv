@@ -23,6 +23,11 @@ let observer = null;
 let _polling = false;
 let _statusChanged = false;
 const STREAM_CONCURRENCY = 6;
+const MAX_AUTO_PLAY_DESKTOP = 9;
+const MAX_AUTO_PLAY_MOBILE_PORTRAIT = 4;
+const MAX_AUTO_PLAY_MOBILE_LANDSCAPE = 6;
+const STAGGER_DELAY_MS = 350;
+const PRIORITY_CATEGORY = "patroli";
 let _activeStreamInit = 0;
 let _streamQueue = [];
 
@@ -126,6 +131,49 @@ function cameraPriority(c) {
     return c.status === "online" ? 0 : 1;
 }
 
+function getMaxAutoPlay() {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    if (vw > 768) return MAX_AUTO_PLAY_DESKTOP;
+    return vw > vh
+        ? MAX_AUTO_PLAY_MOBILE_LANDSCAPE
+        : MAX_AUTO_PLAY_MOBILE_PORTRAIT;
+}
+
+function isPriorityCamera(c) {
+    return (c.category || "").toLowerCase() === PRIORITY_CATEGORY;
+}
+
+function getAutoPlayTargets() {
+    const max = getMaxAutoPlay();
+    const visibleIds = getFilteredIds();
+    return cameras
+        .filter((c) => visibleIds.has(c.id) && c.status === "online")
+        .sort((a, b) => {
+            const pa = isPriorityCamera(a) ? 0 : 1;
+            const pb = isPriorityCamera(b) ? 0 : 1;
+            if (pa !== pb) return pa - pb;
+            return cameraPriority(a) - cameraPriority(b);
+        })
+        .slice(0, max);
+}
+
+function initStaggeredBurst() {
+    const targets = getAutoPlayTargets();
+    targets.forEach((camera, index) => {
+        setTimeout(() => {
+            if (camera.status !== "online") return;
+            if (streamManagers.has(camera.id) || initQueue.has(camera.id))
+                return;
+            const cell = document.querySelector(
+                `.camera-cell[data-id="${camera.id}"]`,
+            );
+            if (!cell || cell.style.display === "none") return;
+            initStream(cell, camera, camera.target_url);
+        }, index * STAGGER_DELAY_MS);
+    });
+}
+
 
 
 function onStreamEnded(cameraId) {
@@ -227,12 +275,17 @@ async function initStream(cell, camera, targetUrl) {
 
             const { default: StreamManager } = await import("./stream-manager.js");
 
+            const isAdaptive =
+                Boolean(camera.adaptive_url) ||
+                (camera.category || "").toLowerCase() === "patroli";
+
             const manager = new StreamManager(
                 camera.id,
                 video,
                 targetUrl,
                 telemetry,
                 onStreamEnded,
+                isAdaptive,
             );
 
             manager.attachMedia();
@@ -335,7 +388,8 @@ function initObserver() {
                         camera &&
                         camera.status === "online" &&
                         !streamManagers.has(camId) &&
-                        !initQueue.has(camId)
+                        !initQueue.has(camId) &&
+                        streamManagers.size < getMaxAutoPlay()
                     ) {
                         initStream(cell, camera, camera.target_url);
                     }
@@ -953,6 +1007,22 @@ window.addEventListener("beforeunload", () => {
     if (observer) observer.disconnect();
 });
 
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        streamManagers.forEach((manager) => manager.suspend());
+    } else {
+        streamManagers.forEach((manager, id) => {
+            const camera = camerasMap.get(id);
+            if (!camera || camera.status !== "online") return;
+            const cell = document.querySelector(
+                `.camera-cell[data-id="${id}"]`,
+            );
+            if (cell && cell.style.display === "none") return;
+            manager.resume();
+        });
+    }
+});
+
 function initPage() {
     cameras.forEach((c) => {
         currentCameraStates[c.id] = c.status;
@@ -975,6 +1045,7 @@ function initPage() {
     initSelectionPanel();
     initObserver();
     applyFilters();
+    initStaggeredBurst();
     showNavbar();
     setInterval(pollLocalJson, 8000);
 }

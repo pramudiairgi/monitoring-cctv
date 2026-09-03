@@ -5,12 +5,13 @@ const RECONNECT_MAX = 999;
 const STALE_TIMEOUT = 30000;
 
 export default class StreamManager {
-    constructor(cameraId, videoElement, streamUrl, telemetry, onOffline) {
+    constructor(cameraId, videoElement, streamUrl, telemetry, onOffline, isAdaptive = true) {
         this.cameraId = cameraId;
         this.video = videoElement;
         this.streamUrl = streamUrl;
         this.telemetry = telemetry || null;
         this._onOffline = onOffline || null;
+        this.isAdaptive = isAdaptive;
         this.hls = null;
         this.reconnectAttempts = 0;
         this.reconnectTimer = null;
@@ -33,16 +34,44 @@ export default class StreamManager {
         }
     }
 
-    getConfig() {
+    getConfig(isAdaptive = this.isAdaptive) {
+        if (isAdaptive) {
+            return {
+                enableWorker: true,
+                lowLatencyMode: true,
+                useFetch: true,
+                liveSyncDuration: 4,
+                liveMaxLatencyDuration: 8,
+                maxBufferLength: 8,
+                maxMaxBufferLength: 12,
+                backbufferLength: 3,
+                startFragPrefetch: true,
+                startLevel: 0,
+                abrEwmaDefaultEstimate: 500000,
+                abrEwmaFastVoD: 3.0,
+                abrEwmaSlowVoD: 5.0,
+                abrBandWidthFactor: 0.5,
+                abrBandWidthUpFactor: 0.5,
+                capLevelToPlayerSize: true,
+                capLevelOnFPSDrop: true,
+                renderNudge: true,
+                maxStarvationDelay: 4,
+                starvationDelay: 2,
+                nudgeOffset: 0.5,
+                enableSoftNudge: false,
+                fragLoadingTimeOut: 6000,
+                liveDurationInfinity: true,
+            };
+        }
         return {
             enableWorker: true,
-            lowLatencyMode: true,
+            lowLatencyMode: false,
             useFetch: true,
-            liveSyncDuration: 4,
-            liveMaxLatencyDuration: 8,
-            maxBufferLength: 6,
-            maxMaxBufferLength: 12,
-            backbufferLength: 3,
+            liveSyncDuration: 8,
+            liveMaxLatencyDuration: 16,
+            maxBufferLength: 18,
+            maxMaxBufferLength: 30,
+            backbufferLength: 8,
             startFragPrefetch: true,
             startLevel: 0,
             abrEwmaDefaultEstimate: 500000,
@@ -57,7 +86,7 @@ export default class StreamManager {
             starvationDelay: 2,
             nudgeOffset: 0.5,
             enableSoftNudge: false,
-            fragLoadingTimeOut: 6000,
+            fragLoadingTimeOut: 12000,
             liveDurationInfinity: true,
         };
     }
