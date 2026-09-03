@@ -33,15 +33,20 @@ class MonitoringController extends Controller
             return json_decode(File::get($path), true);
         });
 
+        $settings = Setting::getMany(
+            ['playback_max_desktop', 'playback_max_mobile_landscape', 'playback_max_mobile_portrait', 'playback_stagger_ms', 'playback_priority_category'],
+            ['playback_max_desktop' => 9, 'playback_max_mobile_landscape' => 6, 'playback_max_mobile_portrait' => 4, 'playback_stagger_ms' => 350, 'playback_priority_category' => 'patroli'],
+        );
+
         return view('monitoring', [
             'cameras' => $data['cameras'] ?? [],
             'categories' => $data['categories'] ?? [],
             'playbackSettings' => [
-                'playback_max_desktop' => (int) Setting::get('playback_max_desktop', 9),
-                'playback_max_mobile_landscape' => (int) Setting::get('playback_max_mobile_landscape', 6),
-                'playback_max_mobile_portrait' => (int) Setting::get('playback_max_mobile_portrait', 4),
-                'playback_stagger_ms' => (int) Setting::get('playback_stagger_ms', 350),
-                'playback_priority_category' => (string) Setting::get('playback_priority_category', 'patroli'),
+                'playback_max_desktop' => (int) $settings['playback_max_desktop'],
+                'playback_max_mobile_landscape' => (int) $settings['playback_max_mobile_landscape'],
+                'playback_max_mobile_portrait' => (int) $settings['playback_max_mobile_portrait'],
+                'playback_stagger_ms' => (int) $settings['playback_stagger_ms'],
+                'playback_priority_category' => (string) $settings['playback_priority_category'],
             ],
         ]);
     }

@@ -34,6 +34,32 @@ class Setting extends Model
     }
 
     /**
+     * Get multiple setting values by key in a single query.
+     *
+     * Returns $defaults[$key] (or null) for missing keys, and an empty
+     * defaults map when the settings table does not exist yet.
+     *
+     * @param  array<int, string>  $keys
+     * @param  array<string, mixed>  $defaults
+     * @return array<string, mixed>
+     */
+    public static function getMany(array $keys, array $defaults = []): array
+    {
+        try {
+            $rows = static::query()->whereIn('key', $keys)->pluck('value', 'key')->all();
+        } catch (QueryException) {
+            $rows = [];
+        }
+
+        $result = [];
+        foreach ($keys as $key) {
+            $result[$key] = $rows[$key] ?? $defaults[$key] ?? null;
+        }
+
+        return $result;
+    }
+
+    /**
      * Create or update a setting value by key.
      */
     public static function set(string $key, mixed $value): static
