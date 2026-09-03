@@ -13,11 +13,13 @@ use App\Filament\Resources\CameraResource\Pages\CreateCamera;
 use App\Filament\Resources\CameraResource\Pages\EditCamera;
 use App\Filament\Resources\CameraResource\Pages;
 use App\Models\Camera;
+use App\Models\User;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class CameraResource extends Resource
 {
@@ -30,6 +32,42 @@ class CameraResource extends Resource
     protected static ?string $modelLabel = 'Camera';
 
     protected static ?string $pluralModelLabel = 'Cameras';
+
+    /**
+     * Operators get full camera management, including delete.
+     * These overrides are the enforcement (navigation hiding is UX only).
+     */
+    public static function canViewAny(): bool
+    {
+        return static::panelUserCanManageCameras();
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::panelUserCanManageCameras();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return static::panelUserCanManageCameras();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return static::panelUserCanManageCameras();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::panelUserCanManageCameras();
+    }
+
+    protected static function panelUserCanManageCameras(): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User && ($user->isAdmin() || $user->isOperator());
+    }
 
     public static function form(Schema $schema): Schema
     {

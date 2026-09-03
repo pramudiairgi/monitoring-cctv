@@ -12,12 +12,14 @@ use App\Filament\Resources\CategoryResource\Pages\CreateCategory;
 use App\Filament\Resources\CategoryResource\Pages\EditCategory;
 use App\Filament\Resources\CategoryResource\Pages;
 use App\Models\Category;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class CategoryResource extends Resource
 {
@@ -30,6 +32,56 @@ class CategoryResource extends Resource
     protected static ?string $modelLabel = 'Category';
 
     protected static ?string $pluralModelLabel = 'Categories';
+
+    /**
+     * Operators may view/create/edit categories. Delete stays admin-only:
+     * deleting a category cascades to its cameras — too destructive
+     * for operators. These overrides are the enforcement
+     * (navigation hiding is UX only).
+     */
+    public static function canViewAny(): bool
+    {
+        return static::panelUserCanManageCategories();
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::panelUserCanManageCategories();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return static::panelUserCanManageCategories();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return static::panelUserIsAdmin();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::panelUserIsAdmin();
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::panelUserCanManageCategories();
+    }
+
+    protected static function panelUserCanManageCategories(): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User && ($user->isAdmin() || $user->isOperator());
+    }
+
+    protected static function panelUserIsAdmin(): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User && $user->isAdmin();
+    }
 
     public static function form(Schema $schema): Schema
     {
