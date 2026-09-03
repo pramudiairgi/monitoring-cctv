@@ -13,6 +13,7 @@ class CameraSeeder extends Seeder
         $categories = [
             ['name' => 'LALIN', 'slug' => 'lalin'],
             ['name' => 'PATROLI', 'slug' => 'patroli'],
+            ['name' => 'Polsek', 'slug' => 'polsek'],
             ['name' => 'KANTOR PEMERINTAHAN', 'slug' => 'kantor-pemerintahan'],
         ];
 
@@ -141,6 +142,153 @@ class CameraSeeder extends Seeder
                 'status' => 'online',
                 'order' => 1,
             ],
+            // Standby catalogue (currently 404/offline, reused when patrol
+            // goes live). status/order/target_url are create-only defaults
+            // below and are never overwritten on re-seed.
+            [
+                'name' => 'PATROLI 1',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/305273463144370038881079.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/305273463144370038881079_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'patroli',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'PATROLI 2',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/456894804730895764350561.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/456894804730895764350561_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'patroli',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'PATROLI 3',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/704266912873134926588108.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/704266912873134926588108_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'patroli',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'PATROLI 4',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/316070009420151011926115.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/316070009420151011926115_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'patroli',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'PATROLI 5',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/269243784546563313118434.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/269243784546563313118434_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'patroli',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'PATROLI 6',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/855547824790277339148013.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/855547824790277339148013_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'patroli',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'PATROLI 7',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/504459775951506263441065.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/504459775951506263441065_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'patroli',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'PATROLI 8',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/698005882731233773189510.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/698005882731233773189510_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'patroli',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'PATROLI 9',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/718945451280463289963515.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/718945451280463289963515_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'patroli',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'PATROLI 10',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/273425931127851001994981.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/273425931127851001994981_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'patroli',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'PATROLI 11',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/836113559784315851701616.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/836113559784315851701616_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'patroli',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'PATROLI 12',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/457700364477230783854749.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/457700364477230783854749_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'patroli',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'Polsek Pedurungan',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/310042472124215705543913.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/310042472124215705543913_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'polsek',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'Polsek Semarang Tengah',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/923691955514471113115883.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/923691955514471113115883_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'polsek',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'Polsek Semarang Utara',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/856480786231112092706226.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/856480786231112092706226_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'polsek',
+                'status' => 'offline',
+                'order' => 0,
+            ],
+            [
+                'name' => 'Polsek Banyumanik',
+                'stream_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/482390122098687704626744.m3u8',
+                'adaptive_url' => 'https://media.pcctabessmg.xyz:5443/LiveApp/streams/482390122098687704626744_adaptive.m3u8',
+                'target_url' => null,
+                'category_slug' => 'polsek',
+                'status' => 'offline',
+                'order' => 0,
+            ],
         ];
 
         foreach ($cameras as $cam) {
@@ -182,6 +330,6 @@ class CameraSeeder extends Seeder
         $liveNames = collect($cameras)->pluck('name')->all();
         Camera::whereNotIn('name', $liveNames)->delete();
 
-        Category::whereIn('slug', ['traffic', 'polsek', 'drone', 'public_facility'])->delete();
+        Category::whereIn('slug', ['traffic', 'drone', 'public_facility'])->delete();
     }
 }
