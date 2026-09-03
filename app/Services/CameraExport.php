@@ -24,9 +24,11 @@ class CameraExport
                 'adaptive_url' => $camera->adaptive_url
                     ? $this->proxyUrl($camera->adaptive_url, $proxyPrefix, $proxyDomains)
                     : null,
-                'target_url' => $camera->target_url
-                    ? $this->proxyUrl($camera->target_url, $proxyPrefix, $proxyDomains)
-                    : $this->proxyUrl($camera->stream_url, $proxyPrefix, $proxyDomains),
+                'target_url' => $this->proxyUrl(
+                    $this->resolveTargetUrl($camera),
+                    $proxyPrefix,
+                    $proxyDomains
+                ),
                 'category' => $camera->category->slug ?? '',
                 'status' => $camera->status,
             ]);
@@ -56,5 +58,19 @@ class CameraExport
             $url = str_replace($domain, $prefix, $url);
         }
         return $url;
+    }
+
+    private function resolveTargetUrl(Camera $camera): string
+    {
+        $validTargets = array_filter([
+            $camera->stream_url,
+            $camera->adaptive_url,
+        ]);
+
+        if ($camera->target_url && in_array($camera->target_url, $validTargets, true)) {
+            return $camera->target_url;
+        }
+
+        return $camera->stream_url;
     }
 }

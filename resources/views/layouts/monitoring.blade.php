@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#000000">
-  <title>CCTV Monitoring</title>
+  <meta name="theme-color" content="#052e2b">
+  <meta name="description" content="PATROLI — live CCTV monitoring dashboard.">
+  <title>PATROLI — Monitoring CCTV</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
   <link rel="preconnect" href="https://livepantau.semarangkota.go.id">
   <link rel="preconnect" href="https://media.pcctabessmg.xyz:5443">
   <link rel="dns-prefetch" href="https://livepantau.semarangkota.go.id">

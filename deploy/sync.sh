@@ -2,7 +2,7 @@
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DOMAIN="live.polisihebat.org"
-BRANCH="main"
+BRANCH="upgrade/filament-v5"
 
 R='\033[0;31m'; G='\033[0;32m'; Y='\033[1;33m'; B='\033[1;34m'; NC='\033[0m'
 info()  { echo -e "${B}[${G}INFO${B}]${NC} $1"; }
@@ -34,17 +34,25 @@ fi
 info "Migration..."
 sudo -u www php artisan migrate --force || fail "migration failed"
 
+info "Seed..."
+sudo -u www php artisan db:seed --force 2>/dev/null || warn "db:seed failed"
+
 info "Cache..."
+sudo -u www php artisan cache:clear 2>/dev/null || warn "cache:clear failed"
+sudo -u www php artisan config:clear 2>/dev/null || warn "config:clear failed"
 sudo -u www php artisan config:cache 2>/dev/null || warn "config:cache failed"
 sudo -u www php artisan route:cache 2>/dev/null || warn "route:cache failed"
 sudo -u www php artisan view:cache 2>/dev/null || warn "view:cache failed"
-sudo -u www php artisan cache:clear 2>/dev/null || warn "cache:clear failed"
+sudo -u www php artisan event:cache 2>/dev/null || warn "event:cache failed"
 
 info "Camera check & export..."
 sudo -u www php artisan cameras:check-status 2>/dev/null || warn "check-status failed"
 sudo -u www php artisan cameras:export 2>/dev/null || warn "export failed"
 
 info "Restart services..."
+sudo supervisorctl restart monitoring-queue:* 2>/dev/null || warn "monitoring-queue restart failed"
+sudo supervisorctl restart laravel-schedule:* 2>/dev/null || warn "laravel-schedule restart failed"
+sudo supervisorctl status monitoring-queue:* laravel-schedule:* 2>/dev/null || warn "supervisor status failed"
 sudo systemctl reload nginx 2>/dev/null || sudo systemctl restart nginx || warn "nginx restart failed"
 sudo systemctl restart php8.4-fpm 2>/dev/null || warn "php-fpm restart failed"
 

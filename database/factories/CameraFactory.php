@@ -14,6 +14,8 @@ class CameraFactory extends Factory
         return [
             'name' => fake()->words(2, true),
             'stream_url' => fake()->url(),
+            'adaptive_url' => null,
+            'target_url' => null,
             'category_id' => Category::factory(),
             'status' => fake()->randomElement(['online', 'offline']),
             'order' => fake()->numberBetween(0, 100),

@@ -2,25 +2,31 @@
 
 namespace App\Filament\Resources;
 
+use Filament\Schemas\Schema;
+use Filament\Actions\EditAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use App\Filament\Resources\CameraResource\Pages\ListCameras;
+use App\Filament\Resources\CameraResource\Pages\CreateCamera;
+use App\Filament\Resources\CameraResource\Pages\EditCamera;
 use App\Filament\Resources\CameraResource\Pages;
 use App\Models\Camera;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
+use App\Models\User;
+use App\Rules\PublicHttpUrl;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables\Actions\BulkActionGroup;
-use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class CameraResource extends Resource
 {
     protected static ?string $model = Camera::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-video-camera';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-video-camera';
 
     protected static ?string $navigationLabel = 'Cameras';
 
@@ -28,10 +34,46 @@ class CameraResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Cameras';
 
-    public static function form(Form $form): Form
+    /**
+     * Operators get full camera management, including delete.
+     * These overrides are the enforcement (navigation hiding is UX only).
+     */
+    public static function canViewAny(): bool
     {
-        return $form
-            ->schema([
+        return static::panelUserCanManageCameras();
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::panelUserCanManageCameras();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return static::panelUserCanManageCameras();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return static::panelUserCanManageCameras();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::panelUserCanManageCameras();
+    }
+
+    protected static function panelUserCanManageCameras(): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User && ($user->isAdmin() || $user->isOperator());
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
                 TextInput::make('name')
                     ->required()
                     ->maxLength(255),
@@ -39,12 +81,14 @@ class CameraResource extends Resource
                 TextInput::make('stream_url')
                     ->required()
                     ->url()
+                    ->rule(new PublicHttpUrl())
                     ->maxLength(255),
 
                 TextInput::make('adaptive_url')
                     ->url()
+                    ->rule(new PublicHttpUrl())
                     ->maxLength(255)
-                    ->helperText('URL _adaptive.m3u8 untuk ABR support (Wowza)'),
+                    ->helperText('URL _adaptive.m3u8 (optional)'),
 
                 Select::make('category_id')
                     ->relationship('category', 'name')
@@ -76,7 +120,7 @@ class CameraResource extends Resource
                     ->sortable(),
 
                 TextColumn::make('status')
-                    ->badge(fn (string $state): string => match ($state) {
+                    ->badge(fn(string $state): string => match ($state) {
                         'online' => 'success',
                         'offline' => 'danger',
                     }),
@@ -89,26 +133,21 @@ class CameraResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->groups([
-                'category.name',
-                'status',
-            ])
-            ->defaultGroup('category.name')
             ->filters([
                 //
             ])
-            ->actions([
+            ->recordActions([
                 EditAction::make(),
                 DeleteAction::make(),
                 Action::make('toggleStatus')
-                    ->icon(fn (Camera $record): string => $record->status === 'online' ? 'heroicon-m-x-mark' : 'heroicon-m-check')
-                    ->label(fn (Camera $record): string => $record->status === 'online' ? 'Set Offline' : 'Set Online')
-                    ->action(fn (Camera $record) => $record->update([
+                    ->icon(fn(Camera $record): string => $record->status === 'online' ? 'heroicon-m-x-mark' : 'heroicon-m-check')
+                    ->label(fn(Camera $record): string => $record->status === 'online' ? 'Set Offline' : 'Set Online')
+                    ->action(fn(Camera $record) => $record->update([
                         'status' => $record->status === 'online' ? 'offline' : 'online',
                     ]))
-                    ->color(fn (Camera $record): string => $record->status === 'online' ? 'danger' : 'success'),
+                    ->color(fn(Camera $record): string => $record->status === 'online' ? 'danger' : 'success'),
             ])
-            ->bulkActions([
+            ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
@@ -123,9 +162,9 @@ class CameraResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListCameras::route('/'),
-            'create' => Pages\CreateCamera::route('/create'),
-            'edit' => Pages\EditCamera::route('/{record}/edit'),
+            'index' => ListCameras::route('/'),
+            'create' => CreateCamera::route('/create'),
+            'edit' => EditCamera::route('/{record}/edit'),
         ];
     }
 }

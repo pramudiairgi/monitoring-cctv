@@ -1,0 +1,14 @@
+# Laravel log rotation — install with:
+#   sudo cp deploy/logrotate.example /etc/logrotate.d/monitoring-cctv
+#
+# Replace __APP_DIR__ with the real path at install time, e.g.:
+#   sudo sed -i "s|__APP_DIR__|/www/wwwroot/live.polisihebat.org/monitoring-cctv|g" /etc/logrotate.d/monitoring-cctv
+__APP_DIR__/storage/logs/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

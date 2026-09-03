@@ -10,4 +10,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('cameras:check-status')->everyMinute()->withoutOverlapping();
-Schedule::command('telemetry:prune --hours=6')->hourly();
+Schedule::command('telemetry:prune --hours=6')->hourly()->withoutOverlapping();

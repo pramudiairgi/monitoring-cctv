@@ -60,7 +60,7 @@ class CameraJsonTest extends TestCase
         $response = $this->get('/cameras.json');
 
         $response->assertHeader('Cache-Control');
-        $this->assertStringContainsString('no-cache', $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('max-age=5', $response->headers->get('Cache-Control'));
     }
 
     public function test_returns_all_cameras(): void
