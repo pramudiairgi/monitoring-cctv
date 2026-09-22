@@ -211,6 +211,14 @@ sudo -u www php artisan cache:clear 2>/dev/null \
 sudo -u www php artisan config:clear 2>/dev/null \
   || warn "config:clear failed"
 
+sudo -u www php artisan route:clear 2>/dev/null \
+  || warn "route:clear failed"
+
+sudo -u www php artisan view:clear 2>/dev/null \
+  || warn "view:clear failed"
+
+sudo -u www php artisan event:clear 2>/dev/null \
+  || warn "event:clear failed"
 sudo -u www php artisan config:cache 2>/dev/null \
   || warn "config:cache failed"
 
@@ -221,6 +229,14 @@ sudo -u www php artisan view:cache 2>/dev/null \
   || warn "view:cache failed"
 
 sudo -u www php artisan event:cache 2>/dev/null \
+sudo -u www php artisan icons:cache 2>/dev/null \
+  || warn "icons:cache failed"
+
+sudo -u www php artisan optimize 2>/dev/null \
+  || warn "optimize failed"
+
+sudo -u www php artisan optimize:clear 2>/dev/null \
+  || warn "optimize:clear failed"
   || warn "event:cache failed"
 
 sudo -u www php artisan cameras:check-status 2>/dev/null \

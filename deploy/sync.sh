@@ -9,6 +9,7 @@ info()  { echo -e "${B}[${G}INFO${B}]${NC} $1"; }
 ok()    { echo -e "${B}[${G} OK ${B}]${NC} $1"; }
 warn()  { echo -e "${B}[${Y}WARN${B}]${NC} $1"; }
 fail()  { echo -e "${B}[${R}FAIL${B}]${NC} $1"; exit 1; }
+skip()  { echo -e "${B}[${Y}SKIP${B}]${NC} $1"; }
 
 echo -e "\n${B}━━━ Monitoring CCTV — Quick Sync ━━━${NC}\n"
 
@@ -37,13 +38,26 @@ sudo -u www php artisan migrate --force || fail "migration failed"
 info "Seed..."
 sudo -u www php artisan db:seed --force 2>/dev/null || warn "db:seed failed"
 
-info "Cache..."
+info "Storage link..."
+sudo -u www php artisan storage:link 2>/dev/null || warn "storage:link failed"
+
+info "Clear caches..."
 sudo -u www php artisan cache:clear 2>/dev/null || warn "cache:clear failed"
 sudo -u www php artisan config:clear 2>/dev/null || warn "config:clear failed"
+sudo -u www php artisan route:clear 2>/dev/null || warn "route:clear failed"
+sudo -u www php artisan view:clear 2>/dev/null || warn "view:clear failed"
+sudo -u www php artisan event:clear 2>/dev/null || warn "event:clear failed"
+
+info "Cache again..."
 sudo -u www php artisan config:cache 2>/dev/null || warn "config:cache failed"
 sudo -u www php artisan route:cache 2>/dev/null || warn "route:cache failed"
 sudo -u www php artisan view:cache 2>/dev/null || warn "view:cache failed"
 sudo -u www php artisan event:cache 2>/dev/null || warn "event:cache failed"
+sudo -u www php artisan icons:cache 2>/dev/null || warn "icons:cache failed"
+
+info "Optimize..."
+sudo -u www php artisan optimize 2>/dev/null || warn "optimize failed"
+sudo -u www php artisan optimize:clear 2>/dev/null || warn "optimize:clear failed"
 
 info "Camera check & export..."
 sudo -u www php artisan cameras:check-status 2>/dev/null || warn "check-status failed"
