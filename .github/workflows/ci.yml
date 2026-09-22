@@ -1,0 +1,124 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: cctv_monitoring
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd redis-cli ping
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring, exif, pcntl, bcmath, gd, soap, intl, redis
+          coverage: xdebug
+
+      - name: Install Composer dependencies
+        run: |
+          composer install --optimize-autoloader --no-interaction
+
+      - name: Copy .env
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Set up database
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: cctv_monitoring
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+        run: |
+          php artisan migrate:fresh --seed
+
+      - name: Run tests with coverage
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: cctv_monitoring
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          CACHE_STORE: redis
+          QUEUE_CONNECTION: sync
+          SESSION_DRIVER: array
+          REDIS_HOST: 127.0.0.1
+        run: |
+          ./vendor/bin/pint --test
+          ./vendor/bin/phpunit --coverage-text --coverage-clover=coverage.xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./coverage.xml
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+
+      - name: Install Composer dependencies
+        run: composer install --optimize-autoloader --no-interaction
+
+      - name: Run Pint
+        run: ./vendor/bin/pint --test
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+
+      - name: Install Composer dependencies
+        run: composer install --optimize-autoloader --no-interaction
+
+      - name: Security scan
+        run: |
+          composer require --dev larastan/larastan --no-interaction || true
+          ./vendor/bin/phpstan analyse app --level=5 --no-progress || true
