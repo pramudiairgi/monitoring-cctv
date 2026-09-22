@@ -139,12 +139,14 @@ class CameraResource extends Resource
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'online' => 'Online',
                         'offline' => 'Offline',
-                    }),
+                    })
+                    ->sortable(),
 
                 IconColumn::make('maintenance')
                     ->boolean()
                     ->color(fn (bool $state): string => $state ? 'warning' : 'success')
-                    ->label('Maintenance'),
+                    ->label('Maintenance')
+                    ->sortable(),
 
                 TextColumn::make('order')
                     ->sortable(),
