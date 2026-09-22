@@ -186,7 +186,9 @@ class CameraResource extends Resource
                             ->numeric()
                             ->required(),
                     ])
-                    ->action(fn (Camera $record, array $data) => $record->update(['order' => $data['order']])),
+                    ->action(fn (Camera $record, array $data) => $record->update(['order' => $data['order']]))
+                    ->color('info')
+                    ->requiresConfirmation(),
                 Action::make('toggleStatus')
                     ->icon(fn (Camera $record): string => $record->status === 'online' ? 'heroicon-m-x-mark' : 'heroicon-m-check')
                     ->label(fn (Camera $record): string => $record->status === 'online' ? 'Set Offline' : 'Set Online')
@@ -226,6 +228,7 @@ class CameraResource extends Resource
                     DeleteBulkAction::make(),
                 ]),
             ]);
+
     }
 
     public static function getRelations(): array
