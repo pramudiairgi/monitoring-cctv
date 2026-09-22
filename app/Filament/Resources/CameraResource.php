@@ -124,8 +124,7 @@ class CameraResource extends Resource
                 TextColumn::make('name')
                     ->searchable(),
 
-                TextColumn::make('category.name')
-                    ->sortable(),
+                TextColumn::make('category.name'),
 
                 TextColumn::make('status')
                     ->badge(fn (string $state): string => match ($state) {
@@ -148,8 +147,7 @@ class CameraResource extends Resource
                     ->label('Maintenance')
                     ->sortable(),
 
-                TextColumn::make('order')
-                    ->sortable(),
+                TextColumn::make('order'),
 
                 TextColumn::make('created_at')
                     ->dateTime()
