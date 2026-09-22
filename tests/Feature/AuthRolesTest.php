@@ -42,7 +42,7 @@ class AuthRolesTest extends TestCase
 
         $this->assertFalse($outsider->canAccessPanel($panel));
 
-        $roleless = new User();
+        $roleless = new User;
         $roleless->role = null;
 
         $this->assertFalse($roleless->canAccessPanel($panel));
@@ -248,10 +248,8 @@ class AuthRolesTest extends TestCase
         $this->actingAs($operator);
 
         Livewire::test(EditProfile::class)
-            ->fillForm([
-                'name' => 'New Operator Name',
-                'email' => $operator->email,
-            ])
+            ->set('data.name', 'New Operator Name')
+            ->set('data.email', $operator->email)
             ->call('save')
             ->assertHasNoFormErrors();
 
@@ -267,12 +265,10 @@ class AuthRolesTest extends TestCase
 
         // Without the current password the change must not go through.
         Livewire::test(EditProfile::class)
-            ->fillForm([
-                'name' => $operator->name,
-                'email' => $operator->email,
-                'password' => 'brand-new-password-456',
-                'passwordConfirmation' => 'brand-new-password-456',
-            ])
+            ->set('data.name', $operator->name)
+            ->set('data.email', $operator->email)
+            ->set('data.password', 'brand-new-password-456')
+            ->set('data.passwordConfirmation', 'brand-new-password-456')
             ->call('save')
             ->assertHasFormErrors(['currentPassword']);
 
@@ -280,13 +276,11 @@ class AuthRolesTest extends TestCase
 
         // With the current password the change succeeds.
         Livewire::test(EditProfile::class)
-            ->fillForm([
-                'name' => $operator->name,
-                'email' => $operator->email,
-                'password' => 'brand-new-password-456',
-                'passwordConfirmation' => 'brand-new-password-456',
-                'currentPassword' => 'current-password-123',
-            ])
+            ->set('data.name', $operator->name)
+            ->set('data.email', $operator->email)
+            ->set('data.password', 'brand-new-password-456')
+            ->set('data.passwordConfirmation', 'brand-new-password-456')
+            ->set('data.currentPassword', 'current-password-123')
             ->call('save')
             ->assertHasNoFormErrors();
 

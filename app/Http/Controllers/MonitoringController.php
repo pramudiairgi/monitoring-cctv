@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Exception;
 use App\Models\Setting;
 use App\Services\CameraExport;
-use Illuminate\Http\Request;
+use Exception;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
@@ -17,7 +16,7 @@ class MonitoringController extends Controller
         $data = Cache::remember('cameras_page', 60, function () use ($export) {
             $path = storage_path('app/public/cameras.json');
 
-            if (!File::exists($path)) {
+            if (! File::exists($path)) {
                 try {
                     $export->handle();
                 } catch (Exception $e) {
@@ -26,7 +25,7 @@ class MonitoringController extends Controller
                 }
             }
 
-            if (!File::exists($path)) {
+            if (! File::exists($path)) {
                 return null;
             }
 

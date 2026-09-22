@@ -2,11 +2,12 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
 use App\Models\Camera;
 use App\Models\Category;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
 
 class CameraCheckStatusCommandTest extends TestCase
 {
@@ -64,7 +65,7 @@ class CameraCheckStatusCommandTest extends TestCase
     {
         Http::fake([
             'https://example.com/stream.m3u8' => function () {
-                throw new \Illuminate\Http\Client\ConnectionException('Connection timed out');
+                throw new ConnectionException('Connection timed out');
             },
         ]);
 
@@ -106,15 +107,15 @@ class CameraCheckStatusCommandTest extends TestCase
             'https://example.com/stream3.m3u8' => Http::response('', 200),
         ]);
 
-        Camera::factory()->create(['stream_url' => 'https://example.com/stream1.m3u8', 'status' => 'offline', 'category_id' => $this->category->id]);
-        Camera::factory()->create(['stream_url' => 'https://example.com/stream2.m3u8', 'status' => 'online', 'category_id' => $this->category->id]);
-        Camera::factory()->create(['stream_url' => 'https://example.com/stream3.m3u8', 'status' => 'offline', 'category_id' => $this->category->id]);
+        $camera1 = Camera::factory()->create(['stream_url' => 'https://example.com/stream1.m3u8', 'status' => 'offline', 'category_id' => $this->category->id]);
+        $camera2 = Camera::factory()->create(['stream_url' => 'https://example.com/stream2.m3u8', 'status' => 'online', 'category_id' => $this->category->id]);
+        $camera3 = Camera::factory()->create(['stream_url' => 'https://example.com/stream3.m3u8', 'status' => 'offline', 'category_id' => $this->category->id]);
 
         $this->artisan('cameras:check-status')->assertSuccessful();
 
-        $this->assertEquals('online', Camera::find(1)?->status);
-        $this->assertEquals('offline', Camera::find(2)?->status);
-        $this->assertEquals('online', Camera::find(3)?->status);
+        $this->assertEquals('online', $camera1->fresh()->status);
+        $this->assertEquals('offline', $camera2->fresh()->status);
+        $this->assertEquals('online', $camera3->fresh()->status);
     }
 
     public function test_resets_target_url_when_stream_url_changes(): void

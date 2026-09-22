@@ -7,7 +7,44 @@ use Illuminate\Http\Request;
 
 class TelemetryController extends Controller
 {
+    /**
+     * Public beacon endpoint — accepts telemetry from dashboard JS without auth.
+     */
     public function store(Request $request)
+    {
+        $records = $this->validateAndBuildRecords($request);
+
+        if (! empty($records)) {
+            ProcessTelemetryJob::dispatch($records);
+        }
+
+        return response()->noContent();
+    }
+
+    /**
+     * Authenticated ingest endpoint — requires Sanctum token with ability.
+     */
+    public function ingest(Request $request)
+    {
+        if (! $request->user()->tokenCan('telemetry:submit')) {
+            abort(403, 'Insufficient permissions.');
+        }
+
+        $records = $this->validateAndBuildRecords($request);
+
+        if (! empty($records)) {
+            ProcessTelemetryJob::dispatch($records);
+        }
+
+        return response()->noContent();
+    }
+
+    /**
+     * Validate input and build database records.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function validateAndBuildRecords(Request $request): array
     {
         $input = $request->json()->all();
         $events = array_is_list($input) ? $input : [$input];
@@ -23,6 +60,7 @@ class TelemetryController extends Controller
 
         $now = now();
         $records = [];
+
         foreach ($events as $event) {
             $data = validator($event, [
                 'camera_id' => 'nullable|integer|exists:cameras,id',
@@ -33,6 +71,7 @@ class TelemetryController extends Controller
                 'latency_ms' => 'nullable|integer',
                 'event_type' => 'required|string|max:50',
                 'error_message' => 'nullable|string|max:2000',
+                'user_agent' => 'nullable|string|max:255',
             ])->validate();
 
             $userAgent = substr((string) $request->userAgent(), 0, 255);
@@ -47,10 +86,6 @@ class TelemetryController extends Controller
             $records[] = $row;
         }
 
-        if (!empty($records)) {
-            ProcessTelemetryJob::dispatch($records);
-        }
-
-        return response()->noContent();
+        return $records;
     }
 }

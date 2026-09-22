@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             );
         }
 
+        $this->call(ShieldSeeder::class);
         $this->call(UserSeeder::class);
         $this->call(CameraSeeder::class);
         $this->call(SettingsSeeder::class);

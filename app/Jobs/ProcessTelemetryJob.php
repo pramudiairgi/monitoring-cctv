@@ -22,7 +22,7 @@ class ProcessTelemetryJob implements ShouldQueue
 
     public function handle(): void
     {
-        if (!empty($this->records)) {
+        if (! empty($this->records)) {
             StreamTelemetry::insert($this->records);
         }
     }

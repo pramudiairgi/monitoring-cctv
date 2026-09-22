@@ -24,7 +24,7 @@ class TelemetryPruneCommand extends Command
             $label = "{$days} days";
         } else {
             $cutoff = now()->subDays(7);
-            $label = "7 days";
+            $label = '7 days';
         }
 
         $deleted = StreamTelemetry::where('created_at', '<', $cutoff)->delete();

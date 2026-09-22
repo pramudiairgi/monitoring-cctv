@@ -51,12 +51,13 @@ class CameraExport
 
     private function proxyUrl(string $url, ?string $prefix, array $domains): string
     {
-        if (!$prefix || !$domains) {
+        if (! $prefix || ! $domains) {
             return $url;
         }
         foreach ($domains as $domain) {
             $url = str_replace($domain, $prefix, $url);
         }
+
         return $url;
     }
 

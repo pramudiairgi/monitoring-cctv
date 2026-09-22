@@ -2,21 +2,18 @@
 
 namespace App\Filament\Resources;
 
-use Filament\Schemas\Schema;
-use Filament\Actions\EditAction;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use App\Filament\Resources\CategoryResource\Pages\ListCategories;
 use App\Filament\Resources\CategoryResource\Pages\CreateCategory;
 use App\Filament\Resources\CategoryResource\Pages\EditCategory;
-use App\Filament\Resources\CategoryResource\Pages;
+use App\Filament\Resources\CategoryResource\Pages\ListCategories;
 use App\Models\Category;
 use App\Models\User;
-use Filament\Forms;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
-use Filament\Tables;
+use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
@@ -25,7 +22,7 @@ class CategoryResource extends Resource
 {
     protected static ?string $model = Category::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-tag';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-tag';
 
     protected static ?string $navigationLabel = 'Categories';
 

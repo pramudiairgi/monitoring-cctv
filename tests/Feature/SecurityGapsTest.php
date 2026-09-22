@@ -38,7 +38,7 @@ class SecurityGapsTest extends TestCase
 
         $validator = validator(
             ['stream_url' => $url],
-            ['stream_url' => ['required', 'url', new PublicHttpUrl()]]
+            ['stream_url' => ['required', 'url', new PublicHttpUrl]]
         );
         $this->assertTrue($validator->fails(), "Expected validation failure: {$url}");
     }
@@ -65,7 +65,7 @@ class SecurityGapsTest extends TestCase
 
         $validator = validator(
             ['stream_url' => $url],
-            ['stream_url' => ['required', 'url', new PublicHttpUrl()]]
+            ['stream_url' => ['required', 'url', new PublicHttpUrl]]
         );
         $this->assertTrue($validator->fails());
     }
@@ -77,7 +77,7 @@ class SecurityGapsTest extends TestCase
 
         $validator = validator(
             ['stream_url' => 'https://93.184.216.34/stream.m3u8'],
-            ['stream_url' => ['required', 'url', new PublicHttpUrl()]]
+            ['stream_url' => ['required', 'url', new PublicHttpUrl]]
         );
         $this->assertTrue($validator->passes());
     }

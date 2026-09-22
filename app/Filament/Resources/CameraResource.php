@@ -2,22 +2,21 @@
 
 namespace App\Filament\Resources;
 
-use Filament\Schemas\Schema;
-use Filament\Actions\EditAction;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\Action;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use App\Filament\Resources\CameraResource\Pages\ListCameras;
 use App\Filament\Resources\CameraResource\Pages\CreateCamera;
 use App\Filament\Resources\CameraResource\Pages\EditCamera;
-use App\Filament\Resources\CameraResource\Pages;
+use App\Filament\Resources\CameraResource\Pages\ListCameras;
 use App\Models\Camera;
 use App\Models\User;
 use App\Rules\PublicHttpUrl;
+use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
@@ -26,7 +25,7 @@ class CameraResource extends Resource
 {
     protected static ?string $model = Camera::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-video-camera';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-video-camera';
 
     protected static ?string $navigationLabel = 'Cameras';
 
@@ -81,12 +80,12 @@ class CameraResource extends Resource
                 TextInput::make('stream_url')
                     ->required()
                     ->url()
-                    ->rule(new PublicHttpUrl())
+                    ->rule(new PublicHttpUrl)
                     ->maxLength(255),
 
                 TextInput::make('adaptive_url')
                     ->url()
-                    ->rule(new PublicHttpUrl())
+                    ->rule(new PublicHttpUrl)
                     ->maxLength(255)
                     ->helperText('URL _adaptive.m3u8 (optional)'),
 
@@ -120,7 +119,7 @@ class CameraResource extends Resource
                     ->sortable(),
 
                 TextColumn::make('status')
-                    ->badge(fn(string $state): string => match ($state) {
+                    ->badge(fn (string $state): string => match ($state) {
                         'online' => 'success',
                         'offline' => 'danger',
                     }),
@@ -140,12 +139,12 @@ class CameraResource extends Resource
                 EditAction::make(),
                 DeleteAction::make(),
                 Action::make('toggleStatus')
-                    ->icon(fn(Camera $record): string => $record->status === 'online' ? 'heroicon-m-x-mark' : 'heroicon-m-check')
-                    ->label(fn(Camera $record): string => $record->status === 'online' ? 'Set Offline' : 'Set Online')
-                    ->action(fn(Camera $record) => $record->update([
+                    ->icon(fn (Camera $record): string => $record->status === 'online' ? 'heroicon-m-x-mark' : 'heroicon-m-check')
+                    ->label(fn (Camera $record): string => $record->status === 'online' ? 'Set Offline' : 'Set Online')
+                    ->action(fn (Camera $record) => $record->update([
                         'status' => $record->status === 'online' ? 'offline' : 'online',
                     ]))
-                    ->color(fn(Camera $record): string => $record->status === 'online' ? 'danger' : 'success'),
+                    ->color(fn (Camera $record): string => $record->status === 'online' ? 'danger' : 'success'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

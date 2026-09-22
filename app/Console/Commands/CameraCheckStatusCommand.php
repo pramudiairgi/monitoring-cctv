@@ -2,14 +2,14 @@
 
 namespace App\Console\Commands;
 
-use Throwable;
 use App\Models\Camera;
 use App\Rules\PublicHttpUrl;
 use App\Services\CameraExport;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Http;
+use Throwable;
 
 class CameraCheckStatusCommand extends Command
 {
@@ -30,6 +30,7 @@ class CameraCheckStatusCommand extends Command
 
         if ($cameras->isEmpty()) {
             $this->warn('No cameras found.');
+
             return Command::SUCCESS;
         }
 
@@ -92,6 +93,7 @@ class CameraCheckStatusCommand extends Command
             if ($unresolved) {
                 $this->warn("Camera [{$camera->name}]: DNS resolution failed, retaining status ({$camera->status}).");
                 $skippedIds[$camera->id] = true;
+
                 continue;
             }
 
@@ -117,7 +119,7 @@ class CameraCheckStatusCommand extends Command
                 }
             });
         } catch (Throwable $e) {
-            $this->error('HTTP pool request failed: ' . $e->getMessage());
+            $this->error('HTTP pool request failed: '.$e->getMessage());
         }
 
         // Map pooled responses back to camera+type in request order.
@@ -125,7 +127,7 @@ class CameraCheckStatusCommand extends Command
         $onlineByKey = [];
         foreach ($safeRequests as $index => $req) {
             $response = $responses[$index] ?? null;
-            $onlineByKey[$req['camera']->id . ':' . $req['type']] =
+            $onlineByKey[$req['camera']->id.':'.$req['type']] =
                 $response instanceof Response && $response->successful();
         }
 
@@ -135,10 +137,10 @@ class CameraCheckStatusCommand extends Command
                 continue;
             }
 
-            $streamOnline = $onlineByKey[$camera->id . ':stream'] ?? false;
+            $streamOnline = $onlineByKey[$camera->id.':stream'] ?? false;
             $adaptiveOnline = false;
             if ($camera->adaptive_url) {
-                $adaptiveOnline = $onlineByKey[$camera->id . ':adaptive'] ?? false;
+                $adaptiveOnline = $onlineByKey[$camera->id.':adaptive'] ?? false;
             }
 
             $oldStatus = $camera->status;

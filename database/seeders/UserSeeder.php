@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class UserSeeder extends Seeder
 {
@@ -32,6 +33,11 @@ class UserSeeder extends Seeder
         // `role` is intentionally NOT mass-assignable — assign explicitly.
         if (! $admin->isAdmin()) {
             $admin->forceFill(['role' => User::ROLE_ADMIN])->save();
+        }
+
+        $superAdmin = Role::firstOrCreate(['name' => 'super_admin']);
+        if (! $admin->hasRole('super_admin')) {
+            $admin->assignRole($superAdmin);
         }
     }
 }

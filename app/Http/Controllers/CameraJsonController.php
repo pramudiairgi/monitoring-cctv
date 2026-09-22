@@ -12,25 +12,25 @@ class CameraJsonController extends Controller
 {
     public function __invoke(CameraExport $export): JsonResponse
     {
-        $data = Cache::remember('cameras_json', 5, function () use ($export) {
-            $path = storage_path('app/public/cameras.json');
-            if (! File::exists($path)) {
-                try {
-                    $export->handle();
-                } catch (Exception $e) {
-                    report($e);
-                }
-            }
-            if (! File::exists($path)) {
-                return null;
-            }
+        $path = storage_path('app/public/cameras.json');
 
+        // If file doesn't exist, try to export
+        if (! File::exists($path)) {
+            try {
+                $export->handle();
+            } catch (Exception $e) {
+                report($e);
+            }
+        }
+
+        // Still doesn't exist after export attempt
+        if (! File::exists($path)) {
+            return response()->json(['cameras' => [], 'categories' => []], 200);
+        }
+
+        $data = Cache::remember('cameras_json', 5, function () use ($path) {
             return json_decode(File::get($path), true);
         });
-
-        if ($data === null) {
-            return response()->json(['cameras' => [], 'categories' => []], 404);
-        }
 
         return response()->json($data, 200, [
             'Cache-Control' => 'public, max-age=5',

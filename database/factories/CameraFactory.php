@@ -2,12 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\Camera;
 use App\Models\Category;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class CameraFactory extends Factory
 {
-    protected $model = \App\Models\Camera::class;
+    protected $model = Camera::class;
 
     public function definition(): array
     {

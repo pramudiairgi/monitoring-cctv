@@ -2,14 +2,16 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
+use Tests\TestCase;
 
 class CameraJsonTest extends TestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
+        Cache::forget('cameras_json');
 
         $path = storage_path('app/public/cameras.json');
         File::put($path, json_encode([
@@ -46,13 +48,18 @@ class CameraJsonTest extends TestCase
         ]);
     }
 
-    public function test_returns_404_when_no_cameras_json(): void
+    public function test_returns_empty_when_no_cameras_exist(): void
     {
-        File::delete(storage_path('app/public/cameras.json'));
+        $path = storage_path('app/public/cameras.json');
+        if (File::exists($path)) {
+            File::delete($path);
+        }
+        Cache::forget('cameras_json');
 
         $response = $this->get('/cameras.json');
 
-        $response->assertStatus(404);
+        $response->assertStatus(200);
+        $response->assertJson(['cameras' => [], 'categories' => []]);
     }
 
     public function test_returns_no_cache_header(): void

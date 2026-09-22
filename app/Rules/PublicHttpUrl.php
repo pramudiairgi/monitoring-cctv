@@ -24,14 +24,14 @@ class PublicHttpUrl implements ValidationRule
             return;
         }
 
-        if (!is_string($value) || !self::isAllowed($value)) {
+        if (! is_string($value) || ! self::isAllowed($value)) {
             $fail('The :attribute must be a public http(s) URL that does not resolve to a private or reserved IP address.');
         }
     }
 
     public static function isAllowed(?string $url): bool
     {
-        if (!is_string($url) || $url === '' || strlen($url) > 2048) {
+        if (! is_string($url) || $url === '' || strlen($url) > 2048) {
             return false;
         }
 
@@ -66,7 +66,7 @@ class PublicHttpUrl implements ValidationRule
         $aaaaRecords = dns_get_record($host, DNS_AAAA);
         if (is_array($aaaaRecords)) {
             foreach ($aaaaRecords as $record) {
-                if (!empty($record['ipv6'])) {
+                if (! empty($record['ipv6'])) {
                     $ips[] = $record['ipv6'];
                 }
             }
