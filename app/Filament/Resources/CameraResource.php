@@ -9,6 +9,7 @@ use App\Models\Camera;
 use App\Models\User;
 use App\Rules\PublicHttpUrl;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -30,6 +31,8 @@ class CameraResource extends Resource
     protected static ?string $model = Camera::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-video-camera';
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Monitoring';
 
     protected static ?string $navigationLabel = 'Cameras';
 
@@ -153,6 +156,11 @@ class CameraResource extends Resource
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('updated_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -167,6 +175,18 @@ class CameraResource extends Resource
             ->recordActions([
                 EditAction::make(),
                 DeleteAction::make(),
+                Action::make('reorder')
+                    ->icon('heroicon-m-arrows-up-down')
+                    ->label('Reorder')
+                    ->modalHeading('Reorder Camera')
+                    ->modalDescription('Move this camera up or down in the list order.')
+                    ->form([
+                        TextInput::make('order')
+                            ->label('Order')
+                            ->numeric()
+                            ->required(),
+                    ])
+                    ->action(fn (Camera $record, array $data) => $record->update(['order' => $data['order']])),
                 Action::make('toggleStatus')
                     ->icon(fn (Camera $record): string => $record->status === 'online' ? 'heroicon-m-x-mark' : 'heroicon-m-check')
                     ->label(fn (Camera $record): string => $record->status === 'online' ? 'Set Offline' : 'Set Online')
@@ -176,8 +196,33 @@ class CameraResource extends Resource
                     ]))
                     ->color(fn (Camera $record): string => $record->status === 'online' ? 'danger' : 'success'),
             ])
-            ->toolbarActions([
+            ->bulkActions([
                 BulkActionGroup::make([
+                    BulkAction::make('setOnline')
+                        ->label('Set Online')
+                        ->icon('heroicon-m-check-circle')
+                        ->color('success')
+                        ->action(fn (array $records) => collect($records)->each(fn ($record) => $record->update([
+                            'status' => 'online',
+                            'maintenance' => false,
+                        ])))
+                        ->requiresConfirmation(),
+                    BulkAction::make('setOffline')
+                        ->label('Set Offline')
+                        ->icon('heroicon-m-x-circle')
+                        ->color('danger')
+                        ->action(fn (array $records) => collect($records)->each(fn ($record) => $record->update([
+                            'status' => 'offline',
+                        ])))
+                        ->requiresConfirmation(),
+                    BulkAction::make('setMaintenance')
+                        ->label('Set Maintenance')
+                        ->icon('heroicon-m-wrench')
+                        ->color('warning')
+                        ->action(fn (array $records) => collect($records)->each(fn ($record) => $record->update([
+                            'maintenance' => true,
+                        ])))
+                        ->requiresConfirmation(),
                     DeleteBulkAction::make(),
                 ]),
             ]);
