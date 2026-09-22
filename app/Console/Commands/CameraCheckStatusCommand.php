@@ -78,6 +78,14 @@ class CameraCheckStatusCommand extends Command
         $safeRequests = [];
         $skippedIds = [];
         foreach ($cameras as $camera) {
+            // Skip cameras in maintenance mode — operator manually set offline.
+            if ($camera->maintenance) {
+                $this->warn("Camera [{$camera->name}]: in maintenance mode, skipping.");
+                $skippedIds[$camera->id] = true;
+
+                continue;
+            }
+
             // DNS resolution failure is transient: retain the previous status
             // instead of flipping the camera offline.
             $unresolved = false;

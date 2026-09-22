@@ -20,6 +20,7 @@ class CameraFactory extends Factory
             'category_id' => Category::factory(),
             'status' => fake()->randomElement(['online', 'offline']),
             'order' => fake()->numberBetween(0, 100),
+            'maintenance' => false,
         ];
     }
 }

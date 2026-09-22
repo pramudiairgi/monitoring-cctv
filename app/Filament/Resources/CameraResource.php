@@ -15,8 +15,10 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
@@ -101,6 +103,11 @@ class CameraResource extends Resource
                     ->required()
                     ->default('online'),
 
+                Toggle::make('maintenance')
+                    ->label('Maintenance Mode')
+                    ->helperText('When enabled, the camera will be skipped by the status checker and not automatically updated.')
+                    ->default(false),
+
                 TextInput::make('order')
                     ->numeric()
                     ->default(0),
@@ -122,7 +129,20 @@ class CameraResource extends Resource
                     ->badge(fn (string $state): string => match ($state) {
                         'online' => 'success',
                         'offline' => 'danger',
+                    })
+                    ->icon(fn (string $state): string => match ($state) {
+                        'online' => 'heroicon-m-check-circle',
+                        'offline' => 'heroicon-m-x-circle',
+                    })
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'online' => 'Online',
+                        'offline' => 'Offline',
                     }),
+
+                IconColumn::make('maintenance')
+                    ->boolean()
+                    ->color(fn (bool $state): string => $state ? 'warning' : 'success')
+                    ->label('Maintenance'),
 
                 TextColumn::make('order')
                     ->sortable(),
@@ -143,6 +163,7 @@ class CameraResource extends Resource
                     ->label(fn (Camera $record): string => $record->status === 'online' ? 'Set Offline' : 'Set Online')
                     ->action(fn (Camera $record) => $record->update([
                         'status' => $record->status === 'online' ? 'offline' : 'online',
+                        'maintenance' => $record->status === 'online',
                     ]))
                     ->color(fn (Camera $record): string => $record->status === 'online' ? 'danger' : 'success'),
             ])

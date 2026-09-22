@@ -18,10 +18,12 @@ class Camera extends Model
         'category_id',
         'status',
         'order',
+        'maintenance',
     ];
 
     protected $casts = [
         'status' => 'string',
+        'maintenance' => 'boolean',
     ];
 
     public function category(): BelongsTo

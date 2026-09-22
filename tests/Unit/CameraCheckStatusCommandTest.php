@@ -129,6 +129,7 @@ class CameraCheckStatusCommandTest extends TestCase
             'stream_url' => 'https://example.com/old-stream.m3u8',
             'adaptive_url' => null,
             'target_url' => 'https://example.com/old-stream.m3u8',
+            'name' => 'Old Name',
             'status' => 'online',
             'category_id' => $this->category->id,
         ]);
@@ -171,5 +172,47 @@ class CameraCheckStatusCommandTest extends TestCase
         ]);
 
         $this->artisan('cameras:check-status')->assertSuccessful();
+    }
+
+    public function test_skips_cameras_in_maintenance_mode(): void
+    {
+        Http::fake([
+            'https://example.com/stream.m3u8' => Http::response('', 200),
+        ]);
+
+        $camera = Camera::factory()->create([
+            'stream_url' => 'https://example.com/stream.m3u8',
+            'status' => 'offline',
+            'category_id' => $this->category->id,
+            'maintenance' => true,
+        ]);
+
+        $this->artisan('cameras:check-status')->assertSuccessful();
+
+        $camera->refresh();
+        // Status should NOT be changed to 'online' because maintenance mode is on.
+        $this->assertEquals('offline', $camera->status);
+        $this->assertTrue($camera->maintenance);
+    }
+
+    public function test_maintenance_camera_not_affected_by_stream_status(): void
+    {
+        Http::fake([
+            'https://example.com/stream.m3u8' => Http::response('', 500),
+        ]);
+
+        $camera = Camera::factory()->create([
+            'stream_url' => 'https://example.com/stream.m3u8',
+            'status' => 'online',
+            'category_id' => $this->category->id,
+            'maintenance' => true,
+        ]);
+
+        $this->artisan('cameras:check-status')->assertSuccessful();
+
+        $camera->refresh();
+        // Status should NOT be changed to 'offline' because maintenance mode is on.
+        $this->assertEquals('online', $camera->status);
+        $this->assertTrue($camera->maintenance);
     }
 }
