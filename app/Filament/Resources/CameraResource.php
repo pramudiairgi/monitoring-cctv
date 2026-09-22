@@ -24,6 +24,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 class CameraResource extends Resource
@@ -204,7 +205,7 @@ class CameraResource extends Resource
                         ->label('Set Online')
                         ->icon('heroicon-m-check-circle')
                         ->color('success')
-                        ->action(fn (array $records) => collect($records)->each(fn ($record) => $record->update([
+                        ->action(fn (Collection $records) => $records->each(fn ($record) => $record->update([
                             'status' => 'online',
                             'maintenance' => false,
                         ])))
@@ -213,7 +214,7 @@ class CameraResource extends Resource
                         ->label('Set Offline')
                         ->icon('heroicon-m-x-circle')
                         ->color('danger')
-                        ->action(fn (array $records) => collect($records)->each(fn ($record) => $record->update([
+                        ->action(fn (Collection $records) => $records->each(fn ($record) => $record->update([
                             'status' => 'offline',
                         ])))
                         ->requiresConfirmation(),
@@ -221,7 +222,7 @@ class CameraResource extends Resource
                         ->label('Set Maintenance')
                         ->icon('heroicon-m-wrench')
                         ->color('warning')
-                        ->action(fn (array $records) => collect($records)->each(fn ($record) => $record->update([
+                        ->action(fn (Collection $records) => $records->each(fn ($record) => $record->update([
                             'maintenance' => true,
                         ])))
                         ->requiresConfirmation(),
