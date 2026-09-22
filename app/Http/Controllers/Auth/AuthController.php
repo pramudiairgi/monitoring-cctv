@@ -72,7 +72,7 @@ class AuthController extends Controller
             $currentToken->delete();
         }
 
-        $token = $request->user()->createToken('refresh')->plainTextToken;
+        $token = $request->user()->createToken('refresh', ['telemetry:submit'])->plainTextToken;
 
         return response()->json([
             'token' => $token,

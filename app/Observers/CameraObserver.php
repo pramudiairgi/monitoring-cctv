@@ -16,7 +16,9 @@ class CameraObserver
 
     public function saved(Camera $camera): void
     {
-        app(CameraExport::class)->handle();
+        if ($camera->isDirty(['stream_url', 'adaptive_url', 'target_url', 'status', 'maintenance', 'order'])) {
+            app(CameraExport::class)->handle();
+        }
     }
 
     public function deleted(Camera $camera): void

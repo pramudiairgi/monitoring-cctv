@@ -47,6 +47,7 @@ class CameraExport
         $path = storage_path('app/public/cameras.json');
         File::put($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         Cache::forget('cameras_json');
+        Cache::forget('cameras_page');
     }
 
     private function proxyUrl(string $url, ?string $prefix, array $domains): string
