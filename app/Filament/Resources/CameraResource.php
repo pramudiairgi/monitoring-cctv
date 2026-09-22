@@ -20,6 +20,8 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 
@@ -153,7 +155,14 @@ class CameraResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                SelectFilter::make('status')
+                    ->label('Status')
+                    ->options([
+                        'online' => 'Online',
+                        'offline' => 'Offline',
+                    ]),
+                TernaryFilter::make('maintenance')
+                    ->label('Maintenance Mode'),
             ])
             ->recordActions([
                 EditAction::make(),
