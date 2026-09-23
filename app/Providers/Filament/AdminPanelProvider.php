@@ -2,7 +2,6 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Widgets\CameraOverviewWidget;
 use App\Filament\Widgets\PatrolAlertWidget;
 use App\Filament\Widgets\PatrolLogWidget;
 use App\Filament\Widgets\PatrolStatsWidget;
@@ -58,7 +57,6 @@ class AdminPanelProvider extends PanelProvider
             ->resourceEditPageRedirect('index')
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                CameraOverviewWidget::class,
                 PatrolStatsWidget::class,
                 PatrolLogWidget::class,
                 PatrolAlertWidget::class,
