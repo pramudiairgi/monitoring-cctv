@@ -2,7 +2,6 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Pages\Login;
 use App\Filament\Widgets\CameraOverviewWidget;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
@@ -32,7 +31,7 @@ class AdminPanelProvider extends PanelProvider
             ->unsavedChangesAlerts()
             ->id('admin')
             ->path('admin')
-            ->login(Login::class)
+            ->login()
             ->profile()
             ->brandName('PATROLI')
             ->brandLogo(new HtmlString(File::get(resource_path('svg/logo.svg'))))
