@@ -21,7 +21,6 @@ class PatrolStatsWidget extends StatsOverviewWidget
         $patrolCategoryId = Category::where('slug', 'patroli')->value('id');
         $total = $patrolCategoryId ? Camera::where('category_id', $patrolCategoryId)->count() : 0;
         $online = $patrolCategoryId ? Camera::where('category_id', $patrolCategoryId)->where('status', 'online')->count() : 0;
-        $offline = $patrolCategoryId ? Camera::where('category_id', $patrolCategoryId)->where('status', 'offline')->count() : 0;
         $lastPatrol = PatrolLog::latest('checked_at')->first();
         $lastCheck = $lastPatrol ? $lastPatrol->checked_at->diffForHumans() : 'Never';
 
@@ -36,11 +35,6 @@ class PatrolStatsWidget extends StatsOverviewWidget
                 ->descriptionIcon('heroicon-m-signal')
                 ->icon('heroicon-o-signal')
                 ->color('success'),
-            Stat::make('Patrol Offline', $offline)
-                ->description('Needs attention')
-                ->descriptionIcon('heroicon-m-signal-slash')
-                ->icon('heroicon-o-signal-slash')
-                ->color($offline > 0 ? 'danger' : 'success'),
             Stat::make('Last Check', $lastCheck)
                 ->description('Patrol log timestamp')
                 ->descriptionIcon('heroicon-m-clock')
