@@ -13,14 +13,12 @@ class AuthController extends Controller
 {
     /**
      * Issue a new API token.
-     *
-     * @return JsonResponse
      */
-    public function login(Request $request)
+    public function login(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+            'email' => 'required|email|max:255',
+            'password' => 'required|string|min:8',
             'device_name' => 'required|string|max:255',
         ]);
 
@@ -47,10 +45,8 @@ class AuthController extends Controller
 
     /**
      * Revoke the current token.
-     *
-     * @return JsonResponse
      */
-    public function logout(Request $request)
+    public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
 
@@ -61,10 +57,8 @@ class AuthController extends Controller
 
     /**
      * Revoke current token and issue a new one.
-     *
-     * @return JsonResponse
      */
-    public function refresh(Request $request)
+    public function refresh(Request $request): JsonResponse
     {
         $currentToken = $request->user()->currentAccessToken();
 
