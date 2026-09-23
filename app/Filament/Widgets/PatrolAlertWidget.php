@@ -32,7 +32,7 @@ class PatrolAlertWidget extends Widget
         $patrolOnline = $patrolCategoryId ? Camera::where('category_id', $patrolCategoryId)->where('status', 'online')->count() : 0;
         $patrolOffline = $patrolCategoryId ? Camera::where('category_id', $patrolCategoryId)->where('status', 'offline')->count() : 0;
 
-        return view('filament-widgets::patrol-alert', [
+        return view('patrol-alert', [
             'offlineCameras' => $offlinePatrolCameras,
             'lastPatrol' => $lastPatrol,
             'totalPatrol' => $totalPatrol,
