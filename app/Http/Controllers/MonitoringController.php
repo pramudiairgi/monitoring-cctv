@@ -59,6 +59,7 @@ class MonitoringController extends Controller
                 'online' => $patrolOnline,
                 'offline' => $patrolOffline,
                 'has_alert' => $patrolOffline > 0,
+                'live' => $patrolOnline > 0,
             ],
         ]);
     }

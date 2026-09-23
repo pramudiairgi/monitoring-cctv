@@ -2,7 +2,11 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Widgets\CategoryStatusWidget;
+use App\Filament\Widgets\OfflineCamerasWidget;
 use App\Filament\Widgets\PatrolStatsWidget;
+use App\Filament\Widgets\PatrolTrendChart;
+use App\Filament\Widgets\StreamHealthWidget;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -56,6 +60,10 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 PatrolStatsWidget::class,
+                CategoryStatusWidget::class,
+                OfflineCamerasWidget::class,
+                PatrolTrendChart::class,
+                StreamHealthWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

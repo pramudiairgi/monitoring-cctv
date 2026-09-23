@@ -1108,66 +1108,66 @@ body {
     outline: none;
 }
 
-/* Patrol Alert Banner */
-.patrol-alert-banner {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: linear-gradient(135deg, rgba(255, 59, 48, 0.95), rgba(255, 59, 48, 0.85));
+/* Patrol Live Toast */
+.patrol-toast {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 1000;
+    max-width: 360px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(16, 185, 129, 0.85));
     backdrop-filter: blur(10px);
-    border-bottom: 2px solid rgba(255, 59, 48, 0.5);
-    animation: patrolAlertSlideIn 0.3s ease-out;
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    animation: patrolToastSlideIn 0.3s ease-out;
 }
 
-@keyframes patrolAlertSlideIn {
+.patrol-toast[hidden] {
+    display: none;
+}
+
+@keyframes patrolToastSlideIn {
     from {
-        transform: translateY(-100%);
+        transform: translateX(100%);
         opacity: 0;
     }
     to {
-        transform: translateY(0);
+        transform: translateX(0);
         opacity: 1;
     }
 }
 
-.patrol-alert-inner {
+.patrol-toast-inner {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 16px;
-    max-width: 1200px;
-    margin: 0 auto;
+    padding: 12px 16px;
 }
 
-.patrol-alert-icon {
+.patrol-toast-icon {
     flex-shrink: 0;
     color: #ffffff;
-    animation: patrolAlertPulse 2s ease-in-out infinite;
 }
 
-@keyframes patrolAlertPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
-.patrol-alert-content {
+.patrol-toast-content {
     flex: 1;
 }
 
-.patrol-alert-title {
+.patrol-toast-title {
     font-size: 14px;
     font-weight: 700;
     color: #ffffff;
     letter-spacing: 0.5px;
 }
 
-.patrol-alert-desc {
+.patrol-toast-desc {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(255, 255, 255, 0.9);
     margin-top: 2px;
 }
 
-.patrol-alert-dismiss {
+.patrol-toast-dismiss {
     flex-shrink: 0;
     background: rgba(255, 255, 255, 0.2);
     border: none;
@@ -1182,18 +1182,18 @@ body {
     transition: background 0.2s;
 }
 
-.patrol-alert-dismiss:hover {
+.patrol-toast-dismiss:hover {
     background: rgba(255, 255, 255, 0.35);
 }
 
-.patrol-alert-dismiss:focus-visible {
+.patrol-toast-dismiss:focus-visible {
     outline: 2px solid #ffffff;
     outline-offset: 2px;
 }
 
 /* Dark mode adjustments */
 @media (prefers-color-scheme: dark) {
-    .patrol-alert-banner {
-        background: linear-gradient(135deg, rgba(255, 59, 48, 0.9), rgba(255, 59, 48, 0.7));
+    .patrol-toast {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(16, 185, 129, 0.7));
     }
 }

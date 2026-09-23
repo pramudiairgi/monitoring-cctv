@@ -53,46 +53,60 @@ const MAX_AUTO_PLAY_MOBILE_PORTRAIT = playbackInt(
 const PATROL_ALERT_SCRIPT = document.getElementById("patrol-alert-data");
 const PATROL_ALERT = PATROL_ALERT_SCRIPT
     ? JSON.parse(PATROL_ALERT_SCRIPT.textContent)
-    : { has_alert: false, total: 0, online: 0, offline: 0 };
+    : { live: false, total: 0, online: 0, offline: 0 };
 
-let patrolAlertDismissed = false;
+let patrolToastTimer = null;
 
-function initPatrolAlert() {
-    const alertBanner = document.getElementById("patrol-alert");
-    if (!alertBanner || !PATROL_ALERT.has_alert) return;
-
-    const dismissBtn = document.getElementById("patrol-alert-dismiss");
-    dismissBtn?.addEventListener("click", () => {
-        alertBanner.style.display = "none";
-        patrolAlertDismissed = true;
-    });
+function showPatrolToast() {
+    const toast = document.getElementById("patrol-toast");
+    if (!toast) return;
+    toast.hidden = false;
+    clearTimeout(patrolToastTimer);
+    patrolToastTimer = setTimeout(() => {
+        toast.hidden = true;
+    }, 7000);
 }
 
-function pollPatrolAlert() {
-    if (patrolAlertDismissed) return;
+function initPatrolToast() {
+    const toast = document.getElementById("patrol-toast");
+    if (!toast) return;
+
+    const dismissBtn = document.getElementById("patrol-toast-dismiss");
+    dismissBtn?.addEventListener("click", () => {
+        toast.hidden = true;
+        clearTimeout(patrolToastTimer);
+    });
+
+    if (PATROL_ALERT.live) {
+        showPatrolToast();
+    }
+}
+
+function pollPatrolToast() {
     fetch("/cameras.json", { priority: "low" })
         .then((res) => res.json())
         .then((data) => {
             const patrolCameras = data.cameras?.filter(
                 (c) => c.category === "patroli"
             ) ?? [];
-            const offlineCount = patrolCameras.filter(
-                (c) => c.status === "offline"
+            const liveCount = patrolCameras.filter(
+                (c) => c.status === "online"
             ).length;
-            if (offlineCount > 0 && !patrolAlertDismissed) {
-                const alertBanner = document.getElementById("patrol-alert");
-                if (alertBanner && alertBanner.style.display !== "none") {
-                    const desc = alertBanner.querySelector(".patrol-alert-desc");
+            if (liveCount > 0) {
+                const toast = document.getElementById("patrol-toast");
+                if (toast && toast.hidden) {
+                    const desc = toast.querySelector(".patrol-toast-desc");
                     if (desc) {
-                        desc.textContent = `${offlineCount}/${patrolCameras.length} kamera patroli offline`;
+                        desc.textContent = `${liveCount}/${patrolCameras.length} kamera patroli sedang live`;
                     }
+                    showPatrolToast();
                 }
             }
         })
         .catch(() => {});
 }
 
-setInterval(pollPatrolAlert, 30000);
+setInterval(pollPatrolToast, 30000);
 const MAX_AUTO_PLAY_MOBILE_LANDSCAPE = playbackInt(
     "playback_max_mobile_landscape",
     6,
@@ -1204,7 +1218,7 @@ initNavButtons();
     initFilterSheet();
     initSelectionPanel();
     initObserver();
-    initPatrolAlert();
+    initPatrolToast();
     initStaggeredBurst();
     showNavbar();
     setInterval(pollLocalJson, 8000);

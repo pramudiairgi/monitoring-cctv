@@ -1,31 +1,28 @@
 @extends('layouts.monitoring')
 
 @section('content')
-  {{-- Patrol Alert Banner --}}
-  @if($patrolAlert['has_alert'])
-    <div id="patrol-alert" class="patrol-alert-banner" role="alert" aria-live="assertive">
-      <div class="patrol-alert-inner">
-        <div class="patrol-alert-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/>
-            <line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-        </div>
-        <div class="patrol-alert-content">
-          <div class="patrol-alert-title">Patrol Alert</div>
-          <div class="patrol-alert-desc">
-            {{ $patrolAlert['offline'] }}/{{ $patrolAlert['total'] }} kamera patroli offline
-          </div>
-        </div>
-        <button id="patrol-alert-dismiss" class="patrol-alert-dismiss" aria-label="Dismiss alert">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-          </svg>
-        </button>
+  {{-- Patrol Live Toast --}}
+  <div id="patrol-toast" class="patrol-toast" role="status" aria-live="polite" hidden>
+    <div class="patrol-toast-inner">
+      <div class="patrol-toast-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
       </div>
+      <div class="patrol-toast-content">
+        <div class="patrol-toast-title">Patrol Live</div>
+        <div class="patrol-toast-desc">
+          {{ $patrolAlert['online'] }}/{{ $patrolAlert['total'] }} kamera patroli sedang live
+        </div>
+      </div>
+      <button id="patrol-toast-dismiss" class="patrol-toast-dismiss" aria-label="Dismiss notification">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+        </svg>
+      </button>
     </div>
-  @endif
+  </div>
 
   <nav id="navbar" class="navbar" aria-label="Camera filters">
     <div class="navbar-inner glass-panel">
