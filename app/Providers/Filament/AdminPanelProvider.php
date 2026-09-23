@@ -2,7 +2,6 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Widgets\PatrolAlertWidget;
 use App\Filament\Widgets\PatrolLogWidget;
 use App\Filament\Widgets\PatrolStatsWidget;
 use Filament\Enums\ThemeMode;
@@ -59,7 +58,6 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 PatrolStatsWidget::class,
                 PatrolLogWidget::class,
-                PatrolAlertWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
