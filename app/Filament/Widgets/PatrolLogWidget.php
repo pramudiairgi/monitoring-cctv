@@ -39,37 +39,11 @@ class PatrolLogWidget extends TableWidget
                         'no_change' => 'No Change',
                     })
                     ->sortable(),
-                TextColumn::make('total_cameras')
-                    ->label('Total')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('online_count')
-                    ->label('Online')
-                    ->numeric()
-                    ->sortable()
-                    ->color('success'),
-                TextColumn::make('offline_count')
-                    ->label('Offline')
-                    ->numeric()
-                    ->sortable()
-                    ->color('danger'),
                 TextColumn::make('status_changed_count')
                     ->label('Changed')
                     ->numeric()
                     ->sortable()
                     ->placeholder('-'),
-                TextColumn::make('patrol_online_count')
-                    ->label('Patrol Online')
-                    ->numeric()
-                    ->sortable()
-                    ->placeholder('-')
-                    ->color('success'),
-                TextColumn::make('patrol_offline_count')
-                    ->label('Patrol Offline')
-                    ->numeric()
-                    ->sortable()
-                    ->placeholder('-')
-                    ->color('danger'),
             ])
             ->defaultSort('checked_at', 'desc')
             ->paginationPageOptions([5, 10, 25, 50]);
