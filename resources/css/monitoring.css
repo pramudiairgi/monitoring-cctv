@@ -1107,3 +1107,93 @@ body {
 :focus:not(:focus-visible) {
     outline: none;
 }
+
+/* Patrol Alert Banner */
+.patrol-alert-banner {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: linear-gradient(135deg, rgba(255, 59, 48, 0.95), rgba(255, 59, 48, 0.85));
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid rgba(255, 59, 48, 0.5);
+    animation: patrolAlertSlideIn 0.3s ease-out;
+}
+
+@keyframes patrolAlertSlideIn {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.patrol-alert-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.patrol-alert-icon {
+    flex-shrink: 0;
+    color: #ffffff;
+    animation: patrolAlertPulse 2s ease-in-out infinite;
+}
+
+@keyframes patrolAlertPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.patrol-alert-content {
+    flex: 1;
+}
+
+.patrol-alert-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+}
+
+.patrol-alert-desc {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 2px;
+}
+
+.patrol-alert-dismiss {
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #ffffff;
+    transition: background 0.2s;
+}
+
+.patrol-alert-dismiss:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.patrol-alert-dismiss:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+    .patrol-alert-banner {
+        background: linear-gradient(135deg, rgba(255, 59, 48, 0.9), rgba(255, 59, 48, 0.7));
+    }
+}

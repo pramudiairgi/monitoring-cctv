@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Camera;
+use App\Models\PatrolLog;
 use App\Rules\PublicHttpUrl;
 use App\Services\CameraExport;
 use Illuminate\Console\Command;
@@ -140,6 +141,13 @@ class CameraCheckStatusCommand extends Command
         }
 
         $changed = 0;
+        $onlineCount = 0;
+        $offlineCount = 0;
+        $patrolOnlineCount = 0;
+        $patrolOfflineCount = 0;
+        $statusChangedCameras = [];
+        $detailArray = [];
+
         foreach ($cameras as $camera) {
             if (isset($skippedIds[$camera->id])) {
                 continue;
@@ -155,6 +163,21 @@ class CameraCheckStatusCommand extends Command
             $newStatus = ($streamOnline || $adaptiveOnline) ? 'online' : 'offline';
             $statusChanged = $oldStatus !== $newStatus;
 
+            if ($newStatus === 'online') {
+                $onlineCount++;
+            } else {
+                $offlineCount++;
+            }
+
+            // Patrol-specific counts
+            if (($camera->category?->slug ?? '') === 'patroli') {
+                if ($newStatus === 'online') {
+                    $patrolOnlineCount++;
+                } else {
+                    $patrolOfflineCount++;
+                }
+            }
+
             $targetUrl = $adaptiveOnline ? $camera->adaptive_url : $camera->stream_url;
             $targetChanged = $camera->target_url !== $targetUrl;
 
@@ -164,15 +187,48 @@ class CameraCheckStatusCommand extends Command
                     'target_url' => $targetUrl,
                 ]);
                 $changed++;
+                $statusChangedCameras[] = $camera->name;
                 $this->info("Camera [{$camera->name}]: status={$oldStatus}->{$newStatus}, target_url updated");
             }
+
+            $detailArray[] = [
+                'id' => $camera->id,
+                'name' => $camera->name,
+                'category' => $camera->category?->slug ?? null,
+                'status' => $newStatus,
+                'stream_online' => $streamOnline,
+                'adaptive_online' => $adaptiveOnline,
+                'status_changed' => $statusChanged,
+            ];
         }
+
+        // Determine overall patrol status
+        $patrolStatus = 'no_change';
+        if ($changed > 0) {
+            $patrolStatus = 'success';
+        } elseif ($offlineCount > 0) {
+            $patrolStatus = 'partial';
+        }
+
+        // Create patrol log
+        PatrolLog::create([
+            'status' => $patrolStatus,
+            'total_cameras' => $cameras->count() - count($skippedIds),
+            'online_count' => $onlineCount,
+            'offline_count' => $offlineCount,
+            'status_changed_count' => $changed > 0 ? $changed : null,
+            'patrol_online_count' => $patrolOnlineCount > 0 ? $patrolOnlineCount : null,
+            'patrol_offline_count' => $patrolOfflineCount > 0 ? $patrolOfflineCount : null,
+            'details' => $detailArray,
+            'checked_at' => now(),
+        ]);
 
         if ($changed > 0) {
             app(CameraExport::class)->handle();
         }
 
         $this->info("Checked {$cameras->count()} cameras, {$changed} changes.");
+        $this->info("Patrol log created: {$patrolOnlineCount} patrol online, {$patrolOfflineCount} patrol offline.");
 
         return Command::SUCCESS;
     }

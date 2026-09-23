@@ -49,6 +49,50 @@ const MAX_AUTO_PLAY_MOBILE_PORTRAIT = playbackInt(
     "playback_max_mobile_portrait",
     4,
 );
+
+const PATROL_ALERT_SCRIPT = document.getElementById("patrol-alert-data");
+const PATROL_ALERT = PATROL_ALERT_SCRIPT
+    ? JSON.parse(PATROL_ALERT_SCRIPT.textContent)
+    : { has_alert: false, total: 0, online: 0, offline: 0 };
+
+let patrolAlertDismissed = false;
+
+function initPatrolAlert() {
+    const alertBanner = document.getElementById("patrol-alert");
+    if (!alertBanner || !PATROL_ALERT.has_alert) return;
+
+    const dismissBtn = document.getElementById("patrol-alert-dismiss");
+    dismissBtn?.addEventListener("click", () => {
+        alertBanner.style.display = "none";
+        patrolAlertDismissed = true;
+    });
+}
+
+function pollPatrolAlert() {
+    if (patrolAlertDismissed) return;
+    fetch("/cameras.json", { priority: "low" })
+        .then((res) => res.json())
+        .then((data) => {
+            const patrolCameras = data.cameras?.filter(
+                (c) => c.category === "patroli"
+            ) ?? [];
+            const offlineCount = patrolCameras.filter(
+                (c) => c.status === "offline"
+            ).length;
+            if (offlineCount > 0 && !patrolAlertDismissed) {
+                const alertBanner = document.getElementById("patrol-alert");
+                if (alertBanner && alertBanner.style.display !== "none") {
+                    const desc = alertBanner.querySelector(".patrol-alert-desc");
+                    if (desc) {
+                        desc.textContent = `${offlineCount}/${patrolCameras.length} kamera patroli offline`;
+                    }
+                }
+            }
+        })
+        .catch(() => {});
+}
+
+setInterval(pollPatrolAlert, 30000);
 const MAX_AUTO_PLAY_MOBILE_LANDSCAPE = playbackInt(
     "playback_max_mobile_landscape",
     6,
@@ -1156,11 +1200,11 @@ function initPage() {
 
     telemetry.init();
     loadSelection();
-    initNavButtons();
+initNavButtons();
     initFilterSheet();
     initSelectionPanel();
     initObserver();
-    applyFilters();
+    initPatrolAlert();
     initStaggeredBurst();
     showNavbar();
     setInterval(pollLocalJson, 8000);

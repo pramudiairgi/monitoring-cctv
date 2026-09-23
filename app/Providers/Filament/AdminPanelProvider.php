@@ -3,6 +3,9 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Widgets\CameraOverviewWidget;
+use App\Filament\Widgets\PatrolAlertWidget;
+use App\Filament\Widgets\PatrolLogWidget;
+use App\Filament\Widgets\PatrolStatsWidget;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -56,6 +59,9 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 CameraOverviewWidget::class,
+                PatrolStatsWidget::class,
+                PatrolLogWidget::class,
+                PatrolAlertWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
