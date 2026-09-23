@@ -39,7 +39,7 @@ class PatrolStatsWidget extends StatsOverviewWidget
                 ->description('Patrol log timestamp')
                 ->descriptionIcon('heroicon-m-clock')
                 ->icon('heroicon-o-clock')
-                ->color('secondary'),
+                ->color('gray'),
         ];
     }
 }
