@@ -18,7 +18,7 @@ return new class extends Migration
             $table->integer('patrol_online_count')->nullable(); // PATROLI category online
             $table->integer('patrol_offline_count')->nullable(); // PATROLI category offline
             $table->text('details')->nullable(); // JSON: per-camera status
-            $table->timestamp('checked_at');
+            $table->timestamp('checked_at')->index();
             $table->timestamps();
         });
     }

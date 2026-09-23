@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::command('cameras:check-status')->everyMinute()->withoutOverlapping();
 Schedule::command('telemetry:prune --hours=6')->hourly()->withoutOverlapping();
 Schedule::command('patrol:alert')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('patrol:prune --days=7')->daily()->withoutOverlapping();
