@@ -72,6 +72,6 @@ class PatrolLogWidget extends TableWidget
                     ->color('danger'),
             ])
             ->defaultSort('checked_at', 'desc')
-            ->paginationPageCount(5);
+            ->paginationPageOptions([5, 10, 25, 50]);
     }
 }
