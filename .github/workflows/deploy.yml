@@ -5,27 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  APP_NAME: PATROLI
-  APP_ENV: production
-  APP_DEBUG: false
-  APP_KEY: ${{ secrets.APP_KEY }}
-  DB_CONNECTION: pgsql
-  DB_HOST: ${{ secrets.DB_HOST }}
-  DB_PORT: 5432
-  DB_DATABASE: ${{ secrets.DB_DATABASE }}
-  DB_USERNAME: ${{ secrets.DB_USERNAME }}
-  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-  REDIS_HOST: ${{ secrets.REDIS_HOST }}
-  REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
-  SESSION_ENCRYPT: true
-  SESSION_SAME_SITE: strict
-  MAIL_MAILER: smtp
-  MAIL_HOST: ${{ secrets.MAIL_HOST }}
-  MAIL_PORT: ${{ secrets.MAIL_PORT }}
-  MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
-  MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -45,59 +24,18 @@ jobs:
         run: |
           composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist
 
-      - name: Install Node dependencies
+      - name: Install Node dependencies and build assets
         run: |
-          npm ci --production
+          npm ci
           npm run build
 
-      - name: Copy .env
-        run: |
-          echo "APP_KEY=${{ secrets.APP_KEY }}" > .env
-          echo "APP_ENV=production" >> .env
-          echo "APP_DEBUG=false" >> .env
-          echo "DB_CONNECTION=pgsql" >> .env
-          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
-          echo "DB_DATABASE=${{ secrets.DB_DATABASE }}" >> .env
-          echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> .env
-          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
-          echo "SESSION_ENCRYPT=true" >> .env
-          echo "SESSION_SAME_SITE=strict" >> .env
-          echo "CACHE_STORE=redis" >> .env
-          echo "QUEUE_CONNECTION=database" >> .env
-          echo "REDIS_HOST=${{ secrets.REDIS_HOST }}" >> .env
-          echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> .env
-
-      - name: Generate application key
-        run: php artisan key:generate --force
-
-      - name: Run database migrations
-        run: php artisan migrate --force
-
-      - name: Seed database
-        run: php artisan db:seed --force
-
-      - name: Cache configuration
-        run: php artisan config:cache
-
-      - name: Cache routes
-        run: php artisan route:cache
-
-      - name: Cache views
-        run: php artisan view:cache
-
-      - name: Cache events
-        run: php artisan events:cache
-
-      - name: Optimize
-        run: php artisan optimize
-
-      - name: Set permissions
-        run: |
-          chmod -R 775 storage bootstrap/cache
-          chown -R www-data:www-data storage bootstrap/cache
-
-      - name: Clear caches
-        run: php artisan optimize:clear
-
-      - name: Notify deployment complete
-        run: echo "Deployment complete!"
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
+          script: |
+            cd ${{ secrets.DEPLOY_APP_DIR || '/var/www/monitoring-cctv' }}
+            bash deploy/deploy.sh
