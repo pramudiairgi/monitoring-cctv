@@ -170,6 +170,9 @@ class CameraResource extends Resource
                         'online' => 'Online',
                         'offline' => 'Offline',
                     ]),
+                SelectFilter::make('category_id')
+                    ->label('Category')
+                    ->relationship('category', 'name'),
                 TernaryFilter::make('maintenance')
                     ->label('Maintenance Mode'),
             ])

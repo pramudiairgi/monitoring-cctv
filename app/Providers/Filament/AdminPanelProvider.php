@@ -21,8 +21,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\HtmlString;
+
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -38,9 +37,9 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->profile()
             ->brandName('PATROLI')
-            ->brandLogo(new HtmlString(File::get(resource_path('svg/logo.svg'))))
-            ->brandLogoHeight('2rem')
-            ->favicon(asset('favicon.svg'))
+            ->brandLogo(asset('svg/logo1.webp'))
+            ->brandLogoHeight('5rem')
+            ->favicon(asset('favicon.png'))
             ->colors([
                 'primary' => Color::Emerald,
                 'info' => Color::Cyan,
