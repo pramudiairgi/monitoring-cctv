@@ -5,7 +5,7 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "dev:full": "concurrently -n server,queue,logs,vite -c blue,yellow,gray,magenta \"php artisan serve\" \"php artisan queue:work --sleep=3 --tries=3\" \"php artisan pail --timeout=0\" \"vite\"",
+        "dev:full": "concurrently -n server,queue,logs,scheduler,vite -c blue,yellow,gray,cyan,magenta \"php artisan serve\" \"php artisan queue:work --sleep=3 --tries=3\" \"php artisan pail --timeout=0\" \"php artisan schedule:work\" \"vite\"",
         "dev:server": "php artisan serve",
         "dev:queue": "php artisan queue:work --sleep=3 --tries=3",
         "dev:logs": "php artisan pail --timeout=0"
