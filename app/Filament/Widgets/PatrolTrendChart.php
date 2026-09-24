@@ -26,13 +26,13 @@ class PatrolTrendChart extends ChartWidget
             'datasets' => [
                 [
                     'label' => 'Online',
-                    'data' => $logs->map(fn (PatrolLog $log) => $log->patrol_online_count ?? $log->online_count ?? 0)->all(),
+                    'data' => $logs->map(fn (PatrolLog $log) => $log->patrol_online_count ?? 0)->all(),
                     'borderColor' => '#10b981',
                     'backgroundColor' => 'rgba(16, 185, 129, 0.1)',
                 ],
                 [
                     'label' => 'Offline',
-                    'data' => $logs->map(fn (PatrolLog $log) => $log->patrol_offline_count ?? $log->offline_count ?? 0)->all(),
+                    'data' => $logs->map(fn (PatrolLog $log) => $log->patrol_offline_count ?? 0)->all(),
                     'borderColor' => '#ef4444',
                     'backgroundColor' => 'rgba(239, 68, 68, 0.1)',
                 ],
