@@ -5,7 +5,7 @@ namespace App\Providers\Filament;
 use App\Filament\Widgets\CategoryStatusWidget;
 use App\Filament\Widgets\OfflineCamerasWidget;
 use App\Filament\Widgets\PatrolStatsWidget;
-use App\Filament\Widgets\PatrolTrendChart;
+use App\Filament\Widgets\PatrolHistoryWidget;
 use App\Filament\Widgets\StreamHealthWidget;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
@@ -61,7 +61,7 @@ class AdminPanelProvider extends PanelProvider
                 PatrolStatsWidget::class,
                 CategoryStatusWidget::class,
                 OfflineCamerasWidget::class,
-                PatrolTrendChart::class,
+                PatrolHistoryWidget::class,
                 StreamHealthWidget::class,
             ])
             ->middleware([
