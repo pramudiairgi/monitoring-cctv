@@ -50,6 +50,11 @@
             <path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/>
           </svg>
         </button>
+        <button id="info-btn" class="navbar-icon-btn" aria-label="Keyboard shortcuts">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+        </button>
       </div>
       <div class="filter-divider"></div>
       <select id="category-filter" class="filter-select" aria-label="Filter by category">

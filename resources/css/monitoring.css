@@ -664,6 +664,30 @@ body {
     background: rgba(255, 255, 255, 0.08);
 }
 
+.camera-grid.grid-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-overlay);
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+}
+
+.info-item kbd {
+    min-width: 32px;
+    padding: 4px 8px;
+    background: var(--glass-bg-light);
+    border: 0.5px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    text-align: center;
+    font-family: var(--font-sans);
+}
+
 .selection-item-name {
     flex: 1;
     font-size: var(--text-sm);

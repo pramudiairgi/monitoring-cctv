@@ -36,6 +36,7 @@ let searchQuery = "";
 let selectedCategory = "";
 let selectedStatus = "online";
 let fullscreenCameraId = null;
+let gridFullscreen = false;
 let cameraSelection = null;
 let navbarTimeout = null;
 let streamManagers = new Map();
@@ -752,6 +753,27 @@ function exitFullscreen() {
     }
 }
 
+function enterGridFullscreen() {
+    gridFullscreen = true;
+    grid.classList.add("grid-fullscreen");
+    navbar.classList.add("hidden");
+    document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("nav-visible"));
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    }
+    announce("Fullscreen grid view");
+}
+
+function exitGridFullscreen() {
+    gridFullscreen = false;
+    grid.classList.remove("grid-fullscreen");
+    showNavbar();
+    if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+    }
+    announce("Exited fullscreen grid view");
+}
+
 function handleFullscreenChange() {
     if (document.fullscreenElement) {
         const cell = document.fullscreenElement.closest(".camera-cell");
@@ -770,11 +792,15 @@ function handleFullscreenChange() {
         const displayName = camera?.name || "";
         announce(`${displayName} - fullscreen view`);
     } else {
-        if (fullscreenCameraId !== null) {
+if (fullscreenCameraId !== null) {
             exitFullscreen();
             return;
         }
-        document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("nav-visible"));
+        if (gridFullscreen) {
+            gridFullscreen = false;
+            grid.classList.remove("grid-fullscreen");
+        }
+        document.querySelectorAll(".fullscreen-nav-btn").forEach(btn => btn.classList.remove("nav-visible"));
         showNavbar();
         resumeAllStreams();
     }
@@ -1010,15 +1036,12 @@ grid?.addEventListener("keydown", (e) => {
 });
 
 function toggleFullscreen() {
-    const activeCell = document.activeElement?.closest(".camera-cell");
-    if (fullscreenCameraId !== null) {
+    if (gridFullscreen) {
+        exitGridFullscreen();
+    } else if (fullscreenCameraId !== null) {
         exitFullscreen();
-    } else if (activeCell) {
-        enterFullscreen(parseInt(activeCell.dataset.id, 10));
-    } else if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
     } else {
-        document.exitFullscreen().catch(() => {});
+        enterGridFullscreen();
     }
 }
 
@@ -1026,8 +1049,12 @@ document.addEventListener("keydown", (e) => {
     const tag = e.target.tagName;
     const isInput = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
 
-    if (e.key === "Escape" && fullscreenCameraId !== null) {
-        exitFullscreen();
+    if (e.key === "Escape" && (fullscreenCameraId !== null || gridFullscreen)) {
+        if (gridFullscreen) {
+            exitGridFullscreen();
+        } else {
+            exitFullscreen();
+        }
         return;
     }
 
@@ -1197,6 +1224,79 @@ document.addEventListener("visibilitychange", () => {
     }
 });
 
+function initInfoModal() {
+    const overlay = document.createElement("div");
+    overlay.id = "info-overlay";
+    overlay.className = "selection-overlay";
+    overlay.setAttribute("aria-hidden", "true");
+
+    const panel = document.createElement("aside");
+    panel.id = "info-panel";
+    panel.className = "selection-panel";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "true");
+    panel.setAttribute("aria-label", "Keyboard shortcuts");
+
+    const header = document.createElement("div");
+    header.className = "selection-panel-header";
+    const title = document.createElement("h2");
+    title.textContent = "Keyboard Shortcuts";
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "selection-panel-close";
+    closeBtn.setAttribute("aria-label", "Close keyboard shortcuts");
+    closeBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+    header.append(title, closeBtn);
+
+    const list = document.createElement("div");
+    list.className = "selection-panel-list";
+
+    const shortcuts = [
+        { keys: "F", label: "Fullscreen semua grid" },
+        { keys: "R", label: "Refresh data kamera" },
+        { keys: "Esc", label: "Keluar fullscreen / tutup panel" },
+        { keys: "← → ↑ ↓", label: "Navigasi antar kamera (saat fullscreen satu tayangan)" },
+        { keys: "F11", label: "Fullscreen browser" },
+    ];
+
+    shortcuts.forEach(({ keys, label }) => {
+        const item = document.createElement("div");
+        item.className = "info-item";
+        const kbd = document.createElement("kbd");
+        kbd.textContent = keys;
+        const text = document.createElement("span");
+        text.textContent = label;
+        item.append(kbd, text);
+        list.appendChild(item);
+    });
+
+    panel.append(header, list);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    const open = () => {
+        overlay.classList.add("open");
+        panel.classList.add("open");
+        overlay.setAttribute("aria-hidden", "false");
+        closeBtn.focus();
+    };
+    const close = () => {
+        overlay.classList.remove("open");
+        panel.classList.remove("open");
+        overlay.setAttribute("aria-hidden", "true");
+    };
+
+    document.getElementById("info-btn")?.addEventListener("click", open);
+    overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) close();
+    });
+    closeBtn.addEventListener("click", close);
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay.classList.contains("open")) {
+            close();
+        }
+    });
+}
+
 function initPage() {
     cameras.forEach((c) => {
         currentCameraStates[c.id] = c.status;
@@ -1217,6 +1317,7 @@ function initPage() {
 initNavButtons();
     initFilterSheet();
     initSelectionPanel();
+    initInfoModal();
     initObserver();
     initPatrolToast();
     initStaggeredBurst();
