@@ -73,29 +73,32 @@ class PlaybackSettings extends Page
         return $schema
             ->components([
                 Section::make('Auto-play limits')
-                    ->description('Maximum number of streams auto-played at once, per device type.')
+                    ->description('Maximum number of streams auto-played at once, per device type. 0 = unlimited.')
                     ->schema([
                         TextInput::make('playback_max_desktop')
                             ->label('Max auto-play (desktop)')
                             ->numeric()
                             ->integer()
                             ->required()
-                            ->minValue(1)
-                            ->maxValue(25),
+                            ->minValue(0)
+                            ->maxValue(25)
+                            ->helperText('0 = tanpa batas (putar semua).'),
                         TextInput::make('playback_max_mobile_landscape')
                             ->label('Max auto-play (mobile landscape)')
                             ->numeric()
                             ->integer()
                             ->required()
-                            ->minValue(1)
-                            ->maxValue(25),
+                            ->minValue(0)
+                            ->maxValue(25)
+                            ->helperText('0 = tanpa batas (putar semua).'),
                         TextInput::make('playback_max_mobile_portrait')
                             ->label('Max auto-play (mobile portrait)')
                             ->numeric()
                             ->integer()
                             ->required()
-                            ->minValue(1)
-                            ->maxValue(25),
+                            ->minValue(0)
+                            ->maxValue(25)
+                            ->helperText('0 = tanpa batas (putar semua).'),
                     ])
                     ->columns(3),
                 Section::make('Playback behavior')

@@ -1221,3 +1221,146 @@ body {
         background: linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(16, 185, 129, 0.7));
     }
 }
+
+/* Batas auto-play user + penghitung live */
+.live-counter {
+    font-size: var(--text-sm);
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    padding: 0 var(--space-2);
+}
+
+/* Tombol putar: menyatu dalam alur placeholder (tidak menumpuk konten) */
+.cell-play-btn {
+    margin: 0;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+.cell-play-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: scale(1.05);
+}
+
+.cell-play-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Tombol jeda: hanya muncul saat hover/fokus ala kontrol video */
+.cell-pause-btn {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    cursor: pointer;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity 0.2s ease,
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+.camera-cell.manual-playing:hover .cell-pause-btn,
+.camera-cell.manual-playing:focus-within .cell-pause-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.cell-pause-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: scale(1.05);
+}
+
+.cell-pause-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Layar sentuh tak punya hover: tombol jeda jadi chip kecil di pojok
+   kanan atas — selalu terlihat tapi tidak menutupi tayangan */
+@media (hover: none) {
+    .camera-cell.manual-playing .cell-pause-btn {
+        opacity: 1;
+        pointer-events: auto;
+        inset: auto;
+        top: 8px;
+        right: 8px;
+        margin: 0;
+        width: 36px;
+        height: 36px;
+    }
+
+    .camera-cell.manual-playing .cell-pause-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cell-play-btn,
+    .cell-pause-btn {
+        transition: none;
+    }
+    .placeholder-spinner,
+    .camera-placeholder {
+        animation: none;
+    }
+}
+
+/* Ikon status placeholder: spinner saat memuat, merah saat offline */
+.placeholder-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.placeholder-icon svg {
+    width: 26px;
+    height: 26px;
+}
+
+.placeholder-icon.offline {
+    color: var(--color-error);
+}
+
+.placeholder-spinner {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    border-top-color: #fff;
+    animation: ph-spin 0.9s linear infinite;
+}
+
+@keyframes ph-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Navbar harus di atas grid saat grid-fullscreen (grid = z-overlay) */
+body.grid-fs .navbar {
+    z-index: calc(var(--z-overlay) + 1);
+}

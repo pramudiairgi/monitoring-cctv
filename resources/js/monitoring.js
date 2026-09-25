@@ -26,7 +26,7 @@ const NAVBAR_HIDE_DELAY = 2000;
 const NAVBAR_HIDE_DELAY_GRID = 2000;
 const TELEMETRY_ENDPOINT = "/api/telemetry";
 const TELEMETRY_FLUSH_INTERVAL = 300000;
-const TELEMETRY_FLUSH_THRESHOLD = 20;
+const TELEMETRY_FLUSH_THRESHOLD = 50;
 const STORAGE_KEY_SELECTION = "camera-selection";
 
 let cameras = CAMERAS;
@@ -45,10 +45,16 @@ let observer = null;
 let _polling = false;
 let _statusChanged = false;
 const STREAM_CONCURRENCY = 6;
+let tempFullscreenId = null;
+const cancelledTempIds = new Set();
 const MAX_AUTO_PLAY_DESKTOP = playbackInt("playback_max_desktop", 9);
 const MAX_AUTO_PLAY_MOBILE_PORTRAIT = playbackInt(
     "playback_max_mobile_portrait",
     4,
+);
+const MAX_AUTO_PLAY_MOBILE_LANDSCAPE = playbackInt(
+    "playback_max_mobile_landscape",
+    6,
 );
 
 const PATROL_ALERT_SCRIPT = document.getElementById("patrol-alert-data");
@@ -108,10 +114,6 @@ function pollPatrolToast() {
 }
 
 setInterval(pollPatrolToast, 30000);
-const MAX_AUTO_PLAY_MOBILE_LANDSCAPE = playbackInt(
-    "playback_max_mobile_landscape",
-    6,
-);
 const STAGGER_DELAY_MS = playbackInt("playback_stagger_ms", 350);
 const PRIORITY_CATEGORY = playbackString(
     "playback_priority_category",
@@ -125,6 +127,8 @@ const cameraNames = new Map(cameras.map((c) => [c.id, c.name]));
 const searchInput = document.getElementById("search");
 const categoryFilter = document.getElementById("category-filter");
 const statusFilter = document.getElementById("status-filter");
+const liveCounter = document.getElementById("live-counter");
+const manualPlayIds = new Set();
 const cameraCount = document.getElementById("camera-count");
 const navbar = document.getElementById("navbar");
 
@@ -220,13 +224,35 @@ function cameraPriority(c) {
     return c.status === "online" ? 0 : 1;
 }
 
-function getMaxAutoPlay() {
+function getMaxAutoPlayRaw() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    if (vw > 768) return MAX_AUTO_PLAY_DESKTOP;
-    return vw > vh
-        ? MAX_AUTO_PLAY_MOBILE_LANDSCAPE
-        : MAX_AUTO_PLAY_MOBILE_PORTRAIT;
+    return vw > 768
+        ? MAX_AUTO_PLAY_DESKTOP
+        : vw > vh
+          ? MAX_AUTO_PLAY_MOBILE_LANDSCAPE
+          : MAX_AUTO_PLAY_MOBILE_PORTRAIT;
+}
+
+// Effective cap from admin setting per device. Admin 0 = unlimited.
+function getMaxAutoPlay() {
+    const serverRaw = getMaxAutoPlayRaw();
+    if (!serverRaw || serverRaw <= 0) return Infinity;
+    return serverRaw;
+}
+
+// Synchronous count of playing + starting streams. initQueue entries are
+// reserved synchronously in initStream(), so this stays accurate while
+// streamManagers.set() still lags behind in the async queue worker.
+function activeStreamCount() {
+    let n = 0;
+    streamManagers.forEach((_, id) => {
+        if (!manualPlayIds.has(id)) n++;
+    });
+    initQueue.forEach((_, id) => {
+        if (!manualPlayIds.has(id)) n++;
+    });
+    return n;
 }
 
 function isPriorityCamera(c) {
@@ -254,6 +280,7 @@ function initStaggeredBurst() {
             if (camera.status !== "online") return;
             if (streamManagers.has(camera.id) || initQueue.has(camera.id))
                 return;
+            if (activeStreamCount() >= getMaxAutoPlay()) return;
             const cell = document.querySelector(
                 `.camera-cell[data-id="${camera.id}"]`,
             );
@@ -306,6 +333,7 @@ function markCameraOffline(camera, cell) {
     const placeholder = cell.querySelector(".camera-placeholder");
     const pt = placeholder?.querySelector(".placeholder-text");
     if (pt) pt.textContent = `${camera.name} - Patroli Offline`;
+    setPlaceholderIcon(cell, "offline");
     placeholder?.classList.remove("placeholder-hidden");
     cell.querySelector("video").style.display = "none";
     updateBadge(cell, "offline");
@@ -355,6 +383,11 @@ async function initStream(cell, camera, targetUrl) {
                 _unlock();
                 return;
             }
+            if (cancelledTempIds.has(camera.id)) {
+                cancelledTempIds.delete(camera.id);
+                _unlock();
+                return;
+            }
 
             const collision = streamManagers.get(camera.id);
             if (collision) {
@@ -379,7 +412,9 @@ async function initStream(cell, camera, targetUrl) {
 
             manager.attachMedia();
             streamManagers.set(camera.id, manager);
+            refreshCellStates();
         } finally {
+            initQueue.delete(camera.id);
             _unlock();
         }
     });
@@ -402,14 +437,18 @@ function createCameraCell(camera) {
     }
     cell.innerHTML = `
         <div class="camera-placeholder">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <button class="cell-play-btn" style="display:none" aria-label="Putar tayangan"></button>
+          <span class="placeholder-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="2" y="4" width="20" height="16" rx="2"/>
             <path d="M10 9l5 3-5 3V9z"/>
           </svg>
+          </span>
           <span class="placeholder-text">Loading stream...</span>
           <span class="placeholder-caption">${escapeHtml(camera.name || "")}</span>
         </div>
         <video muted autoplay playsinline></video>
+        <button class="cell-pause-btn" style="display:none" aria-label="Berhenti memutar"></button>
         <div class="camera-placeholder-info">
           <span class="status-badge ${escapeHtml(camera.status || "offline")}">${escapeHtml(camera.name || "")} - ${escapeHtml(camera.status || "")}</span>
         </div>
@@ -482,13 +521,21 @@ async function pollLocalJson() {
                     updateBadge(cell, "online");
                     cell.style.order = "-1";
 
-                    if (cell.style.display !== "none") {
+                    if (
+                        cell.style.display !== "none" &&
+                        (streamManagers.has(oldCam.id) ||
+                            activeStreamCount() < getMaxAutoPlay())
+                    ) {
                         await initStream(cell, oldCam, oldCam.target_url);
                     }
                 } else {
                     updateBadge(cell, "online");
                     cell.style.order = "-1";
-                    if (!streamManagers.has(newCam.id) && cell.style.display !== "none") {
+                    if (
+                        !streamManagers.has(newCam.id) &&
+                        cell.style.display !== "none" &&
+                        activeStreamCount() < getMaxAutoPlay()
+                    ) {
                         await initStream(cell, oldCam, oldCam.target_url);
                     }
                 }
@@ -503,6 +550,7 @@ async function pollLocalJson() {
                     const ph = cell.querySelector(".camera-placeholder");
                     const pt = ph?.querySelector(".placeholder-text");
                     if (pt) pt.textContent = `${newCam.name} - Offline`;
+                    setPlaceholderIcon(cell, "offline");
                     cell.querySelector("video").style.display = "none";
                     const overlay = cell.querySelector(".camera-offline-overlay");
                     if (overlay) overlay.style.display = "";
@@ -529,7 +577,7 @@ async function pollLocalJson() {
                             if (camera.status !== "online") return;
                             if (streamManagers.has(camera.id) || initQueue.has(camera.id))
                                 return;
-                            if (streamManagers.size >= getMaxAutoPlay()) return;
+                            if (activeStreamCount() >= getMaxAutoPlay()) return;
                             const cell = document.querySelector(
                                 `.camera-cell[data-id="${camera.id}"]`,
                             );
@@ -543,6 +591,7 @@ async function pollLocalJson() {
         /* silent */
     } finally {
         _polling = false;
+        refreshCellStates();
     }
 }
 
@@ -561,7 +610,8 @@ function initObserver() {
                         camera.status === "online" &&
                         !streamManagers.has(camId) &&
                         !initQueue.has(camId) &&
-                        streamManagers.size < getMaxAutoPlay()
+                        activeStreamCount() < getMaxAutoPlay() &&
+                        getAutoPlayTargets().some((c) => c.id === camId)
                     ) {
                         initStream(cell, camera, camera.target_url);
                     }
@@ -666,9 +716,194 @@ function applyFilters() {
         const selected = cameraSelection === null ? cameras.length : cameraSelection.size;
         cameraCount.textContent = `${visibleCount} visible / ${selected} selected`;
     }
+    refreshCellStates();
 }
 
-function suspendOtherStreams(activeId) {
+// Temp fullscreen stream: plays a capped (non-playing) online camera only
+// while it is fullscreen. Destroyed on exit/switch so the grid returns to
+// the autoplay set.
+async function ensureTempFullscreenStream(cameraId) {
+    const camera = camerasMap.get(cameraId);
+    if (!camera || camera.status !== "online") return;
+    const existing = streamManagers.get(cameraId);
+    if (existing) {
+        if (existing._suspended) existing.resume();
+        return;
+    }
+    const cell = document.querySelector(
+        `.camera-cell[data-id="${cameraId}"]`,
+    );
+    if (!cell) return;
+    cancelledTempIds.delete(cameraId);
+    tempFullscreenId = cameraId;
+    try {
+        await initStream(cell, camera, camera.target_url);
+    } catch {
+        /* offline/dead stream — placeholder stays */
+    }
+    if (fullscreenCameraId !== cameraId) {
+        cleanupTempFullscreenStream(cameraId);
+    }
+}
+
+function cleanupTempFullscreenStream(cameraId) {
+    const id = cameraId ?? tempFullscreenId;
+    if (id === null || id === undefined) return;
+    if (id === tempFullscreenId) tempFullscreenId = null;
+    cancelledTempIds.add(id);
+    const mgr = streamManagers.get(id);
+    if (mgr) {
+        mgr.destroy();
+        streamManagers.delete(id);
+    }
+    if (fullscreenCameraId !== id) {
+        resetCellToPlaceholder(id);
+    }
+}
+
+function resetCellToPlaceholder(id) {
+    const cell = document.querySelector(`.camera-cell[data-id="${id}"]`);
+    if (!cell) return;
+    const camera = camerasMap.get(id);
+    if (!camera || camera.status !== "online") return;
+    const ph = cell.querySelector(".camera-placeholder");
+    const pt = ph?.querySelector(".placeholder-text");
+    if (pt) pt.textContent = "Online \u2014 klik untuk putar";
+    setPlaceholderIcon(cell, "hidden");
+    ph?.classList.remove("placeholder-hidden");
+    const video = cell.querySelector("video");
+    if (video) video.style.display = "none";
+    updatePlayButton(cell, camera);
+}
+
+function enforceAutoPlayCap() {
+    const max = getMaxAutoPlay();
+    if (!Number.isFinite(max)) return;
+    const allowed = new Set(getAutoPlayTargets().map((c) => c.id));
+    streamManagers.forEach((mgr, id) => {
+        if (manualPlayIds.has(id) || allowed.has(id)) return;
+        mgr.destroy();
+        streamManagers.delete(id);
+        resetCellToPlaceholder(id);
+    });
+    updateLiveCounter();
+}
+
+const ICON_PLAY = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
+const ICON_STOP = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>`;
+
+const ICON_OFFLINE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.66 6H14a2 2 0 0 1 2 2v2.34l1 1L22 8v8"/><path d="M16 16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2l10 10Z"/><line x1="2" x2="22" y1="2" y2="22"/></svg>`;
+
+function setPlaceholderIcon(cell, kind) {
+    const icon = cell.querySelector(".camera-placeholder .placeholder-icon");
+    if (!icon) return;
+    if (kind === "hidden") {
+        icon.style.display = "none";
+        return;
+    }
+    icon.style.display = "";
+    icon.classList.toggle("offline", kind === "offline");
+    icon.innerHTML =
+        kind === "offline" ? ICON_OFFLINE : `<span class="placeholder-spinner"></span>`;
+}
+
+function updatePlayButton(cell, camera) {
+    let playBtn = cell.querySelector(".cell-play-btn");
+    if (!playBtn) {
+        playBtn = document.createElement("button");
+        playBtn.className = "cell-play-btn";
+        playBtn.style.display = "none";
+        playBtn.setAttribute("aria-label", "Putar tayangan");
+        cell.querySelector(".camera-placeholder")?.appendChild(playBtn);
+    }
+    let pauseBtn = cell.querySelector(".cell-pause-btn");
+    if (!pauseBtn) {
+        pauseBtn = document.createElement("button");
+        pauseBtn.className = "cell-pause-btn";
+        pauseBtn.style.display = "none";
+        pauseBtn.setAttribute("aria-label", "Berhenti memutar");
+        const info = cell.querySelector(".camera-placeholder-info");
+        if (info) info.before(pauseBtn);
+        else cell.appendChild(pauseBtn);
+    }
+    const online = camera.status === "online";
+    const playing = streamManagers.has(camera.id);
+    const isManual = manualPlayIds.has(camera.id);
+    const showPlay = online && !playing;
+    const showPause = online && playing && isManual;
+    playBtn.style.display = showPlay ? "" : "none";
+    if (showPlay) playBtn.innerHTML = ICON_PLAY;
+    pauseBtn.style.display = showPause ? "" : "none";
+    if (showPause) pauseBtn.innerHTML = ICON_STOP;
+    cell.classList.toggle("manual-playing", showPause);
+}
+
+function refreshCellStates() {
+    const targets = new Set(getAutoPlayTargets().map((c) => c.id));
+    document.querySelectorAll(".camera-cell").forEach((cell) => {
+        const id = parseInt(cell.dataset.id, 10);
+        const camera = camerasMap.get(id);
+        if (!camera || camera.status !== "online") {
+            if (camera) updatePlayButton(cell, camera);
+            return;
+        }
+        if (streamManagers.has(id)) {
+            updatePlayButton(cell, camera);
+            return;
+        }
+        if (targets.has(id)) {
+            const pt = cell.querySelector(".camera-placeholder .placeholder-text");
+            if (pt) pt.textContent = "Memuat tayangan...";
+            setPlaceholderIcon(cell, "loading");
+            cell.querySelectorAll(".cell-play-btn, .cell-pause-btn").forEach((b) => {
+                b.style.display = "none";
+            });
+            return;
+        }
+        resetCellToPlaceholder(id);
+    });
+    updateLiveCounter();
+}
+
+function updateLiveCounter() {
+    if (!liveCounter) return;
+    let online = 0;
+    cameras.forEach((c) => {
+        const cell = document.querySelector(`.camera-cell[data-id="${c.id}"]`);
+        if (cell && cell.style.display !== "none" && c.status === "online") online++;
+    });
+    liveCounter.textContent = `Live ${streamManagers.size}/${online}`;
+}
+
+function toggleManualPlay(cameraId) {
+    const camera = camerasMap.get(cameraId);
+    if (!camera || camera.status !== "online") return;
+    if (manualPlayIds.has(cameraId) || streamManagers.has(cameraId)) {
+        if (manualPlayIds.has(cameraId)) {
+            if (fullscreenCameraId === cameraId) exitFullscreen();
+            const mgr = streamManagers.get(cameraId);
+            if (mgr) {
+                mgr.destroy();
+                streamManagers.delete(cameraId);
+            }
+            manualPlayIds.delete(cameraId);
+            cancelledTempIds.add(cameraId);
+            resetCellToPlaceholder(cameraId);
+        } else {
+            manualPlayIds.add(cameraId);
+        }
+        refreshCellStates();
+        return;
+    }
+    const cell = document.querySelector(`.camera-cell[data-id="${cameraId}"]`);
+    if (!cell) return;
+    cancelledTempIds.delete(cameraId);
+    manualPlayIds.add(cameraId);
+    initStream(cell, camera, camera.target_url).catch(() => {});
+    refreshCellStates();
+}
+
+   function suspendOtherStreams(activeId) {
     streamManagers.forEach((manager, id) => {
         if (id !== activeId) manager.suspend();
     });
@@ -688,13 +923,18 @@ function getVisibleCameras() {
 function switchFullscreen(newCameraId) {
     if (newCameraId === fullscreenCameraId) return;
 
+    if (tempFullscreenId !== null && tempFullscreenId !== newCameraId) {
+        cleanupTempFullscreenStream(tempFullscreenId);
+    }
+
     const oldCell = document.querySelector(`.camera-cell[data-id="${fullscreenCameraId}"]`);
     if (oldCell) oldCell.classList.remove("fullscreen");
 
     const newCell = document.querySelector(`.camera-cell[data-id="${newCameraId}"]`);
     if (!newCell) {
         fullscreenCameraId = null;
-        document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("nav-visible"));
+        cleanupTempFullscreenStream();
+        enforceAutoPlayCap();
         showNavbar();
         resumeAllStreams();
         return;
@@ -704,16 +944,16 @@ function switchFullscreen(newCameraId) {
     newCell.classList.add("fullscreen");
     newCell.focus();
 
-    document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("hidden-nav"));
     clearTimeout(navbarTimeout);
     scheduleNavbarHide();
 
-    const targetMgr = streamManagers.get(newCameraId);
-    if (targetMgr && targetMgr._suspended) targetMgr.resume();
+    ensureTempFullscreenStream(newCameraId);
 
     streamManagers.forEach((mgr, id) => {
         if (id !== newCameraId) mgr.suspend();
     });
+
+    refreshCellStates();
 
     const camera = camerasMap.get(newCameraId);
     announce(`${camera?.name || ""} - fullscreen view`);
@@ -725,8 +965,8 @@ function enterFullscreen(cameraId) {
     fullscreenCameraId = cameraId;
     cell.classList.add("fullscreen");
     cell.focus();
-    document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.add("nav-visible"));
     suspendOtherStreams(cameraId);
+    ensureTempFullscreenStream(cameraId);
     clearTimeout(navbarTimeout);
     navbar.classList.add("hidden");
     const camera = camerasMap.get(cameraId);
@@ -744,7 +984,8 @@ function exitFullscreen() {
     );
     if (cell) cell.classList.remove("fullscreen");
     fullscreenCameraId = null;
-    document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("nav-visible"));
+    cleanupTempFullscreenStream();
+    enforceAutoPlayCap();
     showNavbar();
     resumeAllStreams();
     announce("Exited fullscreen view");
@@ -756,8 +997,8 @@ function exitFullscreen() {
 function enterGridFullscreen() {
     gridFullscreen = true;
     grid.classList.add("grid-fullscreen");
-    navbar.classList.add("hidden");
-    document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("nav-visible"));
+    document.body.classList.add("grid-fs");
+    showNavbar();
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(() => {});
     }
@@ -767,6 +1008,7 @@ function enterGridFullscreen() {
 function exitGridFullscreen() {
     gridFullscreen = false;
     grid.classList.remove("grid-fullscreen");
+    document.body.classList.remove("grid-fs");
     showNavbar();
     if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
@@ -782,12 +1024,12 @@ function handleFullscreenChange() {
         fullscreenCameraId = id;
         cell.classList.add("fullscreen");
         cell.focus();
-        document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.add("nav-visible"));
         clearTimeout(navbarTimeout);
         if (window.innerWidth > 768) {
             navbar.classList.add("hidden");
         }
         suspendOtherStreams(id);
+        ensureTempFullscreenStream(id);
         const camera = camerasMap.get(id);
         const displayName = camera?.name || "";
         announce(`${displayName} - fullscreen view`);
@@ -799,8 +1041,8 @@ if (fullscreenCameraId !== null) {
         if (gridFullscreen) {
             gridFullscreen = false;
             grid.classList.remove("grid-fullscreen");
+            document.body.classList.remove("grid-fs");
         }
-        document.querySelectorAll(".fullscreen-nav-btn").forEach(btn => btn.classList.remove("nav-visible"));
         showNavbar();
         resumeAllStreams();
     }
@@ -818,13 +1060,11 @@ function scheduleNavbarHide() {
             : NAVBAR_HIDE_DELAY_GRID;
     navbarTimeout = setTimeout(() => {
         navbar.classList.add("hidden");
-        document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.add("hidden-nav"));
     }, delay);
 }
 
 function showNavbar() {
     navbar.classList.remove("hidden");
-    document.querySelectorAll(".fullscreen-nav-btn").forEach((btn) => btn.classList.remove("hidden-nav"));
     clearTimeout(navbarTimeout);
     scheduleNavbarHide();
 }
@@ -1005,10 +1245,16 @@ statusFilter?.addEventListener("change", (e) => {
     applyFilters();
 });
 
-grid?.addEventListener("click", (e) => {
+ grid?.addEventListener("click", (e) => {
     const closeBtn = e.target.closest(".fullscreen-close");
     if (closeBtn) {
         exitFullscreen();
+        return;
+    }
+    const playToggle = e.target.closest(".cell-play-btn, .cell-pause-btn");
+    if (playToggle) {
+        const toggleCell = e.target.closest(".camera-cell");
+        if (toggleCell) toggleManualPlay(parseInt(toggleCell.dataset.id, 10));
         return;
     }
     const cell = e.target.closest(".camera-cell");
@@ -1024,6 +1270,7 @@ grid?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
         const closeBtn = e.target.closest(".fullscreen-close");
         if (closeBtn) return;
+        if (e.target.closest(".cell-play-btn, .cell-pause-btn")) return;
         e.preventDefault();
         const cell = e.target.closest(".camera-cell");
         if (!cell) return;
@@ -1072,6 +1319,18 @@ document.addEventListener("keydown", (e) => {
         return;
     }
 
+    if (gridFullscreen && !isInput && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        e.preventDefault();
+        const visible = getVisibleCameras();
+        if (visible.length === 0) return;
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+            enterFullscreen(visible[visible.length - 1].id);
+        } else {
+            enterFullscreen(visible[0].id);
+        }
+        return;
+    }
+
     if (e.key === "F11") {
         e.preventDefault();
         toggleFullscreen();
@@ -1087,20 +1346,6 @@ document.addEventListener("keydown", (e) => {
     if (!isInput && (e.key === "r" || e.key === "R")) {
         pollLocalJson();
         return;
-    }
-});
-
-document.addEventListener("click", (e) => {
-    const navBtn = e.target.closest(".fullscreen-nav-btn");
-    if (!navBtn || fullscreenCameraId === null) return;
-    const visible = getVisibleCameras();
-    if (visible.length <= 1) return;
-    const idx = visible.findIndex((c) => c.id === fullscreenCameraId);
-    if (idx === -1) return;
-    if (navBtn.classList.contains("prev")) {
-        switchFullscreen(visible[(idx - 1 + visible.length) % visible.length].id);
-    } else if (navBtn.classList.contains("next")) {
-        switchFullscreen(visible[(idx + 1) % visible.length].id);
     }
 });
 
@@ -1154,7 +1399,7 @@ function initFilterSheet() {
         applyFilters();
     });
 
-    refreshBtn?.addEventListener("click", function () {
+     refreshBtn?.addEventListener("click", function () {
         closeSheet();
         pollLocalJson();
     });
@@ -1163,21 +1408,6 @@ function initFilterSheet() {
         closeSheet();
         document.getElementById("select-btn")?.click();
     });
-}
-
-function initNavButtons() {
-    const frag = document.createDocumentFragment();
-    const prevBtn = document.createElement("button");
-    prevBtn.className = "fullscreen-nav-btn prev";
-    prevBtn.setAttribute("aria-label", "Previous camera");
-    prevBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
-    const nextBtn = document.createElement("button");
-    nextBtn.className = "fullscreen-nav-btn next";
-    nextBtn.setAttribute("aria-label", "Next camera");
-    nextBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
-    frag.appendChild(prevBtn);
-    frag.appendChild(nextBtn);
-    document.body.appendChild(frag);
 }
 
 navbar?.addEventListener("mouseenter", showNavbar);
@@ -1314,7 +1544,6 @@ function initPage() {
 
     telemetry.init();
     loadSelection();
-initNavButtons();
     initFilterSheet();
     initSelectionPanel();
     initInfoModal();
