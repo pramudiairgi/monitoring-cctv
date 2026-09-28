@@ -230,62 +230,6 @@ body {
     outline-offset: 2px;
 }
 
-/* Fullscreen Navigation Buttons */
-.fullscreen-nav-btn {
-    position: fixed;
-    bottom: 16px;
-    z-index: calc(var(--z-close) - 1);
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.55);
-    border: 0.5px solid rgba(255, 255, 255, 0.12);
-    border-radius: 50%;
-    color: #fff;
-    cursor: pointer;
-    opacity: 0;
-    transition:
-        opacity 0.3s ease,
-        transform 0.2s ease;
-}
-
-.fullscreen-nav-btn.nav-visible {
-    opacity: 1;
-}
-
-.fullscreen-nav-btn.hidden-nav {
-    opacity: 0;
-}
-
-.fullscreen-nav-btn:hover {
-    background: rgba(0, 0, 0, 0.7);
-    transform: scale(1.1);
-}
-
-.fullscreen-nav-btn.prev {
-    left: calc(50% - 48px);
-}
-
-.fullscreen-nav-btn.next {
-    left: calc(50% + 8px);
-}
-
-@media (max-width: 768px) {
-    .fullscreen-nav-btn {
-        width: 36px;
-        height: 36px;
-        bottom: 8px;
-    }
-    .fullscreen-nav-btn.prev {
-        left: calc(50% - 44px);
-    }
-    .fullscreen-nav-btn.next {
-        left: calc(50% + 8px);
-    }
-}
-
 .camera-offline-overlay {
     position: absolute;
     inset: 0;
