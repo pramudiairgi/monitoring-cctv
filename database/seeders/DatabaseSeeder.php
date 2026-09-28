@@ -10,13 +10,14 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $categories = [
-            ['name' => 'LALIN', 'slug' => 'lalin'],
-            ['name' => 'PATROLI', 'slug' => 'patroli'],
-            ['name' => 'KANTOR PEMERINTAHAN', 'slug' => 'kantor-pemerintahan'],
+            ['name' => 'Live Patroli', 'slug' => 'patroli'],
+            ['name' => 'Monitoring \u2013 Lalin', 'slug' => 'monitoring-lalin'],
+            ['name' => 'Monitoring \u2013 Polsek', 'slug' => 'monitoring-polsek'],
+            ['name' => 'Monitoring \u2013 Kantor', 'slug' => 'monitoring-kantor'],
         ];
 
         foreach ($categories as $cat) {
-            Category::firstOrCreate(
+            Category::updateOrCreate(
                 ['slug' => $cat['slug']],
                 ['name' => $cat['name']]
             );

@@ -171,8 +171,28 @@ if [ -f package.json ]; then
     || warn "npm install also failed"
 
   if [ -d node_modules ]; then
-    npm run build --no-ansi \
-      || warn "npm run build failed — check for JS/CSS errors"
+    BUILD_BACKUP_DIR=""
+    if [ -d public/build ]; then
+      BUILD_BACKUP_DIR="$(mktemp -d 2>/dev/null)" || warn "Cannot create build backup dir"
+      if [ -n "$BUILD_BACKUP_DIR" ]; then
+        cp -a public/build/. "$BUILD_BACKUP_DIR/" || { warn "Cannot back up public/build"; BUILD_BACKUP_DIR=""; }
+      fi
+    fi
+    if npm run build --no-ansi; then
+      [ -n "$BUILD_BACKUP_DIR" ] && rm -rf "$BUILD_BACKUP_DIR"
+    else
+      warn "npm run build failed — check for JS/CSS errors"
+      if [ -n "$BUILD_BACKUP_DIR" ]; then
+        rm -rf public/build
+        if cp -a "$BUILD_BACKUP_DIR/." public/build/; then
+          warn "Restored previous frontend build from backup"
+        else
+          warn "Could not restore previous frontend build — check public/build"
+        fi
+        rm -rf "$BUILD_BACKUP_DIR"
+      fi
+    fi
+    unset BUILD_BACKUP_DIR
   else
     warn "node_modules not available — frontend build skipped"
   fi
@@ -237,7 +257,6 @@ sudo -u www php artisan optimize 2>/dev/null \
 
 sudo -u www php artisan optimize:clear 2>/dev/null \
   || warn "optimize:clear failed"
-  || warn "event:cache failed"
 
 sudo -u www php artisan cameras:check-status 2>/dev/null \
   || warn "Initial camera probe failed (expected if no cameras yet)"

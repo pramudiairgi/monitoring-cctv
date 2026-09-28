@@ -13,7 +13,9 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Str;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
@@ -86,12 +88,18 @@ class CategoryResource extends Resource
             ->components([
                 TextInput::make('name')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(fn (Set $set, ?string $state): mixed => $set('slug', Str::slug($state ?? ''))),
 
                 TextInput::make('slug')
+                    ->required()
                     ->maxLength(255)
-                    ->dehydrated()
-                    ->unique(Category::class, 'slug', ignoreRecord: true),
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(fn (Set $set, ?string $state): mixed => $set('slug', Str::slug($state ?? '')))
+                    ->dehydrateStateUsing(fn (?string $state): string => Str::slug($state ?? ''))
+                    ->unique(Category::class, 'slug', ignoreRecord: true)
+                    ->helperText('Slug dipakai kode (mis. patroli untuk prioritas & toast). Jangan diubah kecuali Anda tahu akibatnya.'),
             ]);
     }
 
