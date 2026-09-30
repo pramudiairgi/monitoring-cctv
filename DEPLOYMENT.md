@@ -1,47 +1,24 @@
 # Deployment Guide
 
-## Quick Start with Docker
+## Production (VPS)
 
-### Prerequisites
-- Docker and Docker Compose installed
-- Git
+Production deploys run **native (no Docker)** via [`deploy/deploy.sh`](deploy/deploy.sh),
+automatically on every push to `main` (`.github/workflows/deploy.yml`) or manually
+on the server. See [README.md](README.md) (Deploy + Rollback sections).
 
-### Steps
+## Local database (optional)
+
+Only PostgreSQL is needed locally — run it straight with Docker, no compose file required:
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/pramudiairgi/monitoring-cctv.git
-cd monitoring-cctv
-
-# 2. Copy .env and configure
-cp .env.example .env
-# Edit .env with your database and service credentials
-
-# 3. Generate APP_KEY
-docker compose run --rm app php artisan key:generate
-
-# 4. Start all services
-docker compose up -d
-
-# 5. Run migrations and seeders
-docker compose run --rm app php artisan migrate --force
-docker compose run --rm app php artisan db:seed --force
-
-# 6. Access the application
-# Admin panel: http://localhost
-# API: http://localhost/api/*
+docker run -d \
+  --name cctv_container \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=<secret> \
+  -e POSTGRES_DB=cctv_monitoring \
+  -p 5431:5432 \
+  postgres:15-alpine
 ```
-
-### Docker Compose Services
-
-| Service | Port | Description |
-|---------|------|-------------|
-| app | 9000 | PHP-FPM |
-| nginx | 80/443 | Web server with SSL |
-| db | 5432 | PostgreSQL 15 |
-| redis | 6379 | Redis cache |
-| worker | - | Queue worker |
-| scheduler | - | Laravel scheduler |
 
 ## Manual Deployment (Without Docker)
 
