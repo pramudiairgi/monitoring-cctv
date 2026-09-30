@@ -973,7 +973,7 @@ function enterFullscreen(cameraId) {
     const displayName = camera?.name || "";
     announce(`${displayName} - fullscreen view`);
     if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
+        document.documentElement.requestFullscreen?.()?.catch(() => {});
     }
 }
 
@@ -1000,7 +1000,7 @@ function enterGridFullscreen() {
     document.body.classList.add("grid-fs");
     showNavbar();
     if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
+        document.documentElement.requestFullscreen?.()?.catch(() => {});
     }
     announce("Fullscreen grid view");
 }

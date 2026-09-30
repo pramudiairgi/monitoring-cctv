@@ -2,7 +2,7 @@ import Hls from "hls.js";
 
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 15000];
 const RECONNECT_MAX = 999;
-const STALE_TIMEOUT = 30000;
+const STALE_TIMEOUT = 60000;
 
 export default class StreamManager {
     constructor(cameraId, videoElement, streamUrl, telemetry, onOffline, isAdaptive = true) {
@@ -375,6 +375,7 @@ export default class StreamManager {
     }
 
     showMessage(text) {
+        this.showPlaceholder();
         if (this.placeholder) {
             const textEl = this.placeholder.querySelector(".placeholder-text");
             if (textEl) {

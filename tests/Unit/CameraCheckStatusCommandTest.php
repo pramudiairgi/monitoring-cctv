@@ -6,6 +6,7 @@ use App\Models\Camera;
 use App\Models\Category;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -43,7 +44,7 @@ class CameraCheckStatusCommandTest extends TestCase
         $this->assertEquals('online', $camera->status);
     }
 
-    public function test_sets_offline_when_stream_url_fails(): void
+    public function test_retains_online_on_first_probe_failure(): void
     {
         Http::fake([
             'https://example.com/stream.m3u8' => Http::response('', 500),
@@ -58,10 +59,11 @@ class CameraCheckStatusCommandTest extends TestCase
         $this->artisan('cameras:check-status')->assertSuccessful();
 
         $camera->refresh();
-        $this->assertEquals('offline', $camera->status);
+        $this->assertEquals('online', $camera->status);
+        $this->assertEquals(1, Cache::get("camera-check-fails:{$camera->id}"));
     }
 
-    public function test_sets_offline_when_connection_times_out(): void
+    public function test_flips_offline_on_second_consecutive_failure(): void
     {
         Http::fake([
             'https://example.com/stream.m3u8' => function () {
@@ -74,11 +76,32 @@ class CameraCheckStatusCommandTest extends TestCase
             'status' => 'online',
             'category_id' => $this->category->id,
         ]);
+        Cache::put("camera-check-fails:{$camera->id}", 1, now()->addMinutes(10));
 
         $this->artisan('cameras:check-status')->assertSuccessful();
 
         $camera->refresh();
         $this->assertEquals('offline', $camera->status);
+    }
+
+    public function test_resets_failure_counter_on_success(): void
+    {
+        Http::fake([
+            'https://example.com/stream.m3u8' => Http::response('', 200),
+        ]);
+
+        $camera = Camera::factory()->create([
+            'stream_url' => 'https://example.com/stream.m3u8',
+            'status' => 'online',
+            'category_id' => $this->category->id,
+        ]);
+        Cache::put("camera-check-fails:{$camera->id}", 1, now()->addMinutes(10));
+
+        $this->artisan('cameras:check-status')->assertSuccessful();
+
+        $camera->refresh();
+        $this->assertEquals('online', $camera->status);
+        $this->assertNull(Cache::get("camera-check-fails:{$camera->id}"));
     }
 
     public function test_does_not_update_when_status_unchanged(): void
@@ -114,7 +137,8 @@ class CameraCheckStatusCommandTest extends TestCase
         $this->artisan('cameras:check-status')->assertSuccessful();
 
         $this->assertEquals('online', $camera1->fresh()->status);
-        $this->assertEquals('offline', $camera2->fresh()->status);
+        // First consecutive failure is retained (debounce), not flipped.
+        $this->assertEquals('online', $camera2->fresh()->status);
         $this->assertEquals('online', $camera3->fresh()->status);
     }
 

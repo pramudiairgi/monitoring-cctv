@@ -9,6 +9,7 @@ use App\Services\CameraExport;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -159,8 +160,29 @@ class CameraCheckStatusCommand extends Command
                 $adaptiveOnline = $onlineByKey[$camera->id.':adaptive'] ?? false;
             }
 
+            // Debounce: hampered sources flap on single probes. Flip to
+            // offline only after consecutive failures; any success resets.
+            // Counter lives in persistent cache (no migration needed).
             $oldStatus = $camera->status;
-            $newStatus = ($streamOnline || $adaptiveOnline) ? 'online' : 'offline';
+            $failKey = "camera-check-fails:{$camera->id}";
+            $hadProbe = array_key_exists($camera->id.':stream', $onlineByKey)
+                || array_key_exists($camera->id.':adaptive', $onlineByKey);
+            if ($streamOnline || $adaptiveOnline) {
+                Cache::forget($failKey);
+                $newStatus = 'online';
+            } elseif (! $hadProbe) {
+                // Deterministic rejection (SSRF guard / pool failure) — the
+                // URL was never fetched, so this is not transient flapping.
+                Cache::forget($failKey);
+                $newStatus = 'offline';
+            } else {
+                $fails = (int) Cache::get($failKey, 0) + 1;
+                Cache::put($failKey, $fails, now()->addMinutes(10));
+                if ($fails < 2) {
+                    $this->warn("Camera [{$camera->name}]: probe failed ({$fails}/2), retaining status ({$oldStatus}).");
+                }
+                $newStatus = $fails >= 2 ? 'offline' : $oldStatus;
+            }
             $statusChanged = $oldStatus !== $newStatus;
 
             if ($newStatus === 'online') {
