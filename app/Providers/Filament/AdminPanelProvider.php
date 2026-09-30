@@ -38,9 +38,9 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->profile()
             ->brandName('PATROLI')
-            ->brandLogo(asset('svg/logo1.webp'))
+            ->brandLogo('/svg/logo1.webp')
             ->brandLogoHeight('5rem')
-            ->favicon(asset('favicon.png'))
+            ->favicon('/favicon.png')
             ->colors([
                 'primary' => Color::Emerald,
                 'info' => Color::Cyan,
