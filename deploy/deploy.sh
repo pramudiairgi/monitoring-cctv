@@ -67,11 +67,21 @@ if ! command -v node &>/dev/null || [ "$(node --version | cut -d'.' -f1 | tr -d 
 fi
 
 retry 3 sudo apt-get install -y \
-  php8.4-fpm php8.4-pgsql php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip \
-  php8.4-bcmath php8.4-intl nginx supervisor postgresql certbot python3-certbot-nginx nodejs \
+  php8.4-fpm php8.4-cli php8.4-pgsql php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip \
+  php8.4-bcmath php8.4-intl php8.4-gd php8.4-exif nginx supervisor postgresql certbot python3-certbot-nginx nodejs \
   || fail "Failed to install system packages"
 
 ok "System dependencies installed"
+
+# Pin CLI php to 8.4: composer/artisan must run on the same major as FPM.
+# Ubuntu 24.04 defaults CLI php to 8.3, which fails platform checks.
+if command -v php8.4 &>/dev/null; then
+  sudo update-alternatives --set php /usr/bin/php8.4 2>/dev/null \
+    || sudo update-alternatives --install /usr/bin/php php /usr/bin/php8.4 84 2>/dev/null \
+    || warn "Cannot pin CLI php to 8.4 via update-alternatives"
+fi
+php -r 'exit(version_compare(PHP_VERSION, "8.4.0", ">=") ? 0 : 1);' 2>/dev/null \
+  || fail "CLI PHP is $(php -r 'echo PHP_VERSION;' 2>/dev/null || echo unknown) — 8.4+ required"
 
 # ──────────────────────────── [2/10] Application Directory ────────────────────────────
 info "[2/10] Setting up application directory..."
