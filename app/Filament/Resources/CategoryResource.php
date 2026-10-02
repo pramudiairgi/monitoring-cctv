@@ -99,7 +99,7 @@ class CategoryResource extends Resource
                     ->afterStateUpdated(fn (Set $set, ?string $state): mixed => $set('slug', Str::slug($state ?? '')))
                     ->dehydrateStateUsing(fn (?string $state): string => Str::slug($state ?? ''))
                     ->unique(Category::class, 'slug', ignoreRecord: true)
-                    ->helperText('Slug dipakai kode (mis. patroli untuk prioritas & toast). Jangan diubah kecuali Anda tahu akibatnya.'),
+                    ->helperText('Kategori prioritas mengikuti Playback Settings. Mengubah slug memengaruhi prioritas, toast & alert.'),
             ]);
     }
 

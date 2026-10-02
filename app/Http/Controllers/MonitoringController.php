@@ -38,11 +38,12 @@ class MonitoringController extends Controller
             ['playback_max_desktop' => 9, 'playback_max_mobile_landscape' => 6, 'playback_max_mobile_portrait' => 4, 'playback_stagger_ms' => 350, 'playback_priority_category' => 'patroli'],
         );
 
-        $patrolOnline = Camera::whereHas('category', fn ($q) => $q->where('slug', 'patroli'))
+        $prioritySlug = strtolower((string) $settings['playback_priority_category']);
+        $patrolOnline = Camera::whereHas('category', fn ($q) => $q->where('slug', $prioritySlug))
             ->where('status', 'online')->count();
-        $patrolOffline = Camera::whereHas('category', fn ($q) => $q->where('slug', 'patroli'))
+        $patrolOffline = Camera::whereHas('category', fn ($q) => $q->where('slug', $prioritySlug))
             ->where('status', 'offline')->count();
-        $patrolTotal = Camera::whereHas('category', fn ($q) => $q->where('slug', 'patroli'))->count();
+        $patrolTotal = Camera::whereHas('category', fn ($q) => $q->where('slug', $prioritySlug))->count();
 
         return view('monitoring', [
             'cameras' => $data['cameras'] ?? [],

@@ -15,6 +15,9 @@ export default class StreamManager {
         this.hls = null;
         this.reconnectAttempts = 0;
         this.reconnectTimer = null;
+        this.hasAudio = false;
+        this._audioProbe = null;
+        this.userPaused = false;
         this.destroyed = false;
         this.startTime = 0;
         this.bufferingStart = 0;
@@ -41,7 +44,11 @@ export default class StreamManager {
                 lowLatencyMode: true,
                 useFetch: true,
                 liveSyncDuration: 4,
-                liveMaxLatencyDuration: 8,
+                // Tolerate being behind live (rewind/DVR); eviction by the
+                // server window governs where smaller. Requires a matching
+                // server playlist window (target ~4-5 min for 2-3 min behind).
+                // Joining still starts near-live.
+                liveMaxLatencyDuration: 200,
                 maxBufferLength: 8,
                 maxMaxBufferLength: 12,
                 backbufferLength: 3,
@@ -112,6 +119,7 @@ export default class StreamManager {
 
     bindHlsEvents() {
         this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            this.updateAudioState();
             this.video.play().catch(() => {});
             this.startTime = Date.now();
             this._lastFragTime = Date.now();
@@ -212,6 +220,7 @@ export default class StreamManager {
         });
 
         this.video.addEventListener("playing", () => {
+            this.notifyAudioState();
             if (this.bufferingStart > 0) {
                 const duration = Date.now() - this.bufferingStart;
                 this.track("buffering_end", {
@@ -232,6 +241,7 @@ export default class StreamManager {
         this.video.addEventListener("loadedmetadata", () => {
             this.video.play().catch(() => {});
             this.startTime = Date.now();
+            this.updateAudioState();
             this.track("play");
         });
 
@@ -252,6 +262,7 @@ export default class StreamManager {
         });
 
         this.video.addEventListener("playing", () => {
+            this.notifyAudioState();
             if (this.bufferingStart > 0) {
                 this.track("buffering_end", {
                     latency_ms: Date.now() - this.bufferingStart,
@@ -331,6 +342,146 @@ export default class StreamManager {
         }
     }
 
+    updateAudioState() {
+        const check = () => {
+            if (this.destroyed) return false;
+            const hlsCount = this.hls?.audioTracks?.length || 0;
+            const elCount = this.video?.audioTracks?.length || 0;
+            const decoded = this.video?.webkitAudioDecodedByteCount || 0;
+            if (
+                hlsCount > 0 ||
+                elCount > 0 ||
+                decoded > 0 ||
+                this.video?.mozHasAudio === true
+            ) {
+                this.setHasAudio(true);
+                return true;
+            }
+            return false;
+        };
+        if (check()) return;
+        clearTimeout(this._audioProbe);
+        this._audioProbe = setTimeout(() => {
+            if (!this.destroyed) check();
+        }, 5000);
+    }
+
+    setHasAudio(v) {
+        if (!v || this.destroyed) return;
+        this.hasAudio = true;
+        this.notifyAudioState();
+    }
+
+    notifyAudioState() {
+        if (this.destroyed || !this.video) return;
+        this.video.dispatchEvent(
+            new CustomEvent("stream-audio", {
+                bubbles: true,
+                detail: { cameraId: this.cameraId },
+            }),
+        );
+    }
+
+    setMuted(muted) {
+        if (this.video) this.video.muted = muted;
+    }
+
+    pauseUser() {
+        if (this.destroyed) return;
+        this.userPaused = true;
+        this.stopStaleCheck();
+        if (this.hls) {
+            try {
+                this.hls.stopLoad();
+            } catch {
+                /* ignore */
+            }
+        }
+        if (this.video && !this.video.paused) this.video.pause();
+        this.track("pause");
+    }
+
+    resumeUser() {
+        if (this.destroyed) return;
+        if (this._suspended) this.resume();
+        this.userPaused = false;
+        this._lastFragTime = 0;
+        this.startStaleCheck();
+        this.syncToLiveEdge();
+        if (this.hls) {
+            try {
+                this.hls.startLoad();
+            } catch {
+                /* ignore */
+            }
+        }
+        if (this.video) {
+            const played = this.video.play();
+            if (played && typeof played.catch === "function") played.catch(() => {});
+        }
+        this.track("resume");
+    }
+
+    getDvrWindow() {
+        const v = this.video;
+        if (!v) return null;
+        try {
+            const s = v.seekable;
+            if (!s || s.length === 0) return null;
+            return { start: s.start(0), end: s.end(s.length - 1) };
+        } catch {
+            return null;
+        }
+    }
+
+    liveEdge() {
+        if (this.hls && Number.isFinite(this.hls.liveSyncPosition)) {
+            return this.hls.liveSyncPosition;
+        }
+        const w = this.getDvrWindow();
+        return w ? w.end : null;
+    }
+
+    secondsBehindLive() {
+        const e = this.liveEdge();
+        if (e === null || e === undefined || !this.video) return 0;
+        return Math.max(0, e - this.video.currentTime);
+    }
+
+    syncToLiveEdge(margin = 3) {
+        const e = this.liveEdge();
+        if (e === null || e === undefined || !this.video) return;
+        try {
+            const target = Math.max(0, e - margin);
+            if (Math.abs(this.video.currentTime - target) > 1.5) {
+                this.video.currentTime = target;
+            }
+        } catch {
+            /* unseekable */
+        }
+    }
+
+    seekTo(t) {
+        const v = this.video;
+        if (!v || this.destroyed) return;
+        const w = this.getDvrWindow();
+        let target = t;
+        // Keep a margin from the sliding-window start so the position is
+        // not evicted out from under us the moment the playlist advances.
+        if (w) target = Math.min(Math.max(t, w.start + 1), w.end);
+        try {
+            v.currentTime = Math.max(0, target);
+        } catch {
+            /* unseekable */
+        }
+        this.track("seek", { target_sec: Math.round(target) });
+    }
+
+    seekBy(sec) {
+        if (!this.video || this.destroyed) return;
+        this.seekTo(this.video.currentTime + sec);
+    }
+
     suspend() {
         if (this.destroyed || this._suspended) return;
         this._suspended = true;
@@ -356,6 +507,7 @@ export default class StreamManager {
     destroy() {
         this.destroyed = true;
         clearTimeout(this.reconnectTimer);
+        clearTimeout(this._audioProbe);
         this.stopStaleCheck();
         this.destroyHls();
     }

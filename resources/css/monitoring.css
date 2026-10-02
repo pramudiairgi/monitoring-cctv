@@ -872,143 +872,6 @@ body {
     }
 
     /* Filter Sheet */
-    .filter-sheet-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: calc(var(--z-overlay) + 1);
-        background: rgba(0, 0, 0, 0.5);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s ease;
-    }
-
-    .filter-sheet-overlay.open {
-        opacity: 1;
-        pointer-events: auto;
-    }
-
-    .filter-sheet {
-        display: flex;
-        flex-direction: column;
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: calc(var(--z-overlay) + 2);
-        background: var(--color-surface);
-        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        transform: translateY(100%);
-        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        max-height: 55vh;
-    }
-
-    .filter-sheet.open {
-        transform: translateY(0);
-    }
-
-    .filter-sheet-handle {
-        width: 36px;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 2px;
-        margin: var(--space-2) auto 0;
-        flex-shrink: 0;
-    }
-
-    .filter-sheet-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-3) var(--space-4);
-        border-bottom: 0.5px solid var(--glass-border);
-        flex-shrink: 0;
-    }
-
-    .filter-sheet-header h2 {
-        font-size: var(--text-base);
-        font-weight: 600;
-    }
-
-    .filter-sheet-close {
-        width: 32px;
-        height: 32px;
-        background: none;
-        border: none;
-        color: var(--color-text-secondary);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--radius-sm);
-    }
-
-    .filter-sheet-close:hover {
-        color: var(--color-text-primary);
-        background: rgba(255, 255, 255, 0.08);
-    }
-
-    .filter-sheet-body {
-        padding: var(--space-3) var(--space-4);
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-    }
-
-    .filter-sheet-select {
-        width: 100%;
-        min-height: 44px;
-        padding: var(--space-2) var(--space-5) var(--space-2) var(--space-3);
-        border: 0.5px solid var(--glass-border);
-        background: var(--glass-bg-light);
-        color: var(--color-text-primary);
-        font-size: var(--text-sm);
-        font-family: var(--font-sans);
-        border-radius: var(--radius-md);
-        outline: none;
-        cursor: pointer;
-        -webkit-appearance: none;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 10px center;
-    }
-
-    .filter-sheet-select option {
-        background: var(--color-surface);
-        color: var(--color-text-primary);
-    }
-
-    .filter-sheet-buttons {
-        display: flex;
-        gap: var(--space-2);
-        padding-top: var(--space-2);
-    }
-
-    .filter-sheet-btn {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--space-2);
-        min-height: 44px;
-        padding: var(--space-1) var(--space-3);
-        border-radius: var(--radius-pill);
-        border: 0.5px solid var(--glass-border);
-        background: var(--glass-bg-light);
-        color: var(--color-text-secondary);
-        font-size: var(--text-sm);
-        font-family: var(--font-sans);
-        cursor: pointer;
-        transition:
-            color 0.2s,
-            border-color 0.2s;
-    }
-
-    .filter-sheet-btn:hover {
-        color: var(--color-text-primary);
-        border-color: rgba(255, 255, 255, 0.3);
-    }
 }
 
 /* Reduced motion */
@@ -1174,32 +1037,41 @@ body {
     padding: 0 var(--space-2);
 }
 
-/* Tombol putar: menyatu dalam alur placeholder (tidak menumpuk konten) */
+/* CTA placeholder: pil kaca mengikuti bahasa navbar */
 .cell-play-btn {
     margin: 0;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    color: #fff;
-    cursor: pointer;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-5);
+    border-radius: var(--radius-pill);
+    background: var(--glass-bg-light);
+    border: 0.5px solid var(--glass-border);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: var(--color-text-primary);
+    font-size: var(--text-sm);
+    font-family: var(--font-sans);
+    cursor: pointer;
     transition:
         background 0.2s ease,
-        transform 0.2s ease;
+        opacity 0.2s ease;
 }
 
 .cell-play-btn:hover {
-    background: rgba(0, 0, 0, 0.8);
-    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.12);
 }
 
 .cell-play-btn svg {
-    width: 24px;
-    height: 24px;
+    width: 18px;
+    height: 18px;
+}
+
+/* Baris status placeholder: ikon + teks sebaris */
+.placeholder-status-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
 }
 
 /* Tombol jeda: hanya muncul saat hover/fokus ala kontrol video */
@@ -1210,8 +1082,10 @@ body {
     width: 52px;
     height: 52px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: var(--glass-bg-light);
+    border: 0.5px solid var(--glass-border);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
     color: #fff;
     cursor: pointer;
     z-index: 2;
@@ -1222,8 +1096,7 @@ body {
     pointer-events: none;
     transition:
         opacity 0.2s ease,
-        background 0.2s ease,
-        transform 0.2s ease;
+        background 0.2s ease;
 }
 
 .camera-cell.manual-playing:hover .cell-pause-btn,
@@ -1233,8 +1106,7 @@ body {
 }
 
 .cell-pause-btn:hover {
-    background: rgba(0, 0, 0, 0.8);
-    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.12);
 }
 
 .cell-pause-btn svg {
@@ -1264,7 +1136,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
     .cell-play-btn,
-    .cell-pause-btn {
+    .cell-pause-btn,
+    .cell-speak-toggle {
         transition: none;
     }
     .placeholder-spinner,
@@ -1281,8 +1154,8 @@ body {
 }
 
 .placeholder-icon svg {
-    width: 26px;
-    height: 26px;
+    width: 20px;
+    height: 20px;
 }
 
 .placeholder-icon.offline {
@@ -1307,4 +1180,745 @@ body {
 /* Navbar harus di atas grid saat grid-fullscreen (grid = z-overlay) */
 body.grid-fs .navbar {
     z-index: calc(var(--z-overlay) + 1);
+}
+
+/* Kontrol speaker: ghost button di dalam bar status (seperti kontrol video).
+   Bar induk pointer-events:none — tombol mengaktifkannya kembali sendiri. */
+.camera-placeholder-info .cell-speak-toggle {
+    pointer-events: auto;
+    flex: none;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition:
+        color 0.2s ease,
+        background 0.2s ease,
+        opacity 0.2s ease;
+}
+
+.camera-placeholder-info .cell-speak-toggle:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.camera-placeholder-info .cell-speak-toggle svg {
+    width: 18px;
+    height: 18px;
+}
+
+.camera-placeholder-info .cell-speak-toggle.speaking {
+    color: var(--color-success);
+}
+
+/* Bar status ikut terang saat ada kontrol live di dalamnya */
+.camera-cell.has-live-control .camera-placeholder-info {
+    opacity: 1;
+}
+
+/* Bilah kontrol fullscreen: play, mundur, seekbar, live, mute, volume */
+#fs-controls {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    z-index: calc(var(--z-close) + 2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: var(--radius-pill);
+    background: rgba(0, 0, 0, 0.65);
+    border: 0.5px solid rgba(255, 255, 255, 0.15);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+#fs-controls button {
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    cursor: pointer;
+    border-radius: var(--radius-pill);
+    height: 36px;
+    min-width: 36px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-sm);
+    font-family: var(--font-sans);
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+#fs-controls button:hover {
+    background: rgba(255, 255, 255, 0.18);
+    transform: scale(1.05);
+}
+
+#fs-controls button svg {
+    width: 18px;
+    height: 18px;
+}
+
+#fs-controls button[data-act="live"] {
+    font-size: var(--text-xs);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+#fs-controls button[data-act="live"].behind {
+    background: rgba(245, 158, 11, 0.85);
+    border-color: transparent;
+    color: #000;
+}
+
+#fs-controls input[type="range"] {
+    accent-color: #10b981;
+    cursor: pointer;
+}
+
+#fs-controls input[data-act="seek"] {
+    width: min(40vw, 320px);
+}
+
+#fs-controls input[data-act="vol"] {
+    width: 80px;
+}
+
+#fs-controls input[type="range"]:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+@media (max-width: 768px) {
+    #fs-controls {
+        bottom: 8px;
+        gap: 8px;
+        padding: 8px 12px;
+        max-width: calc(100vw - 16px);
+    }
+
+    #fs-controls input[data-act="seek"] {
+        width: 28vw;
+    }
+
+    #fs-controls input[data-act="vol"] {
+        width: 56px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #fs-controls button {
+        transition: none;
+    }
+}
+
+/* HP kecil: control bar fullscreen tidak boleh meluap — volume menyatu
+   ke tombol mute, celah dirapatkan */
+@media (max-width: 480px) {
+    #fs-controls {
+        gap: 6px;
+        padding: 8px 10px;
+    }
+
+    #fs-controls input[data-act="vol"] {
+        display: none;
+    }
+
+    #fs-controls input[data-act="seek"] {
+        width: 30vw;
+    }
+}
+
+/* Hilangkan jeda tap & zoom ganda tak disengaja di layar sentuh */
+.camera-grid,
+.camera-cell,
+.navbar-inner,
+#fs-controls {
+    touch-action: manipulation;
+}
+
+/* Perangkat sentuh tak punya hover untuk memunculkan navbar yang
+   auto-hide — dan tap dipakai untuk masuk fullscreen. Maka navbar
+   tidak pernah disembunyikan di perangkat sentuh. */
+@media (hover: none) {
+    .navbar.hidden {
+        transform: none;
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #fs-controls {
+        transition: none;
+    }
+}
+
+/* Mode umpan scroll: dipakai saat viewport pendek-lanskap (HP landscape).
+   Sel berasio 16/9 alami dan grid men-scroll vertikal. */
+.camera-grid.scroll-feed {
+    overflow-y: auto;
+    align-content: start;
+}
+
+.camera-grid.scroll-feed .camera-cell {
+    aspect-ratio: 16 / 9;
+    min-height: 120px;
+}
+
+.camera-grid.scroll-feed .camera-cell video {
+    position: absolute;
+    inset: 0;
+}
+
+/* Chrome ramping + konten sel padat untuk lanskap pendek */
+@media (max-height: 500px) and (orientation: landscape) {
+    .navbar-inner {
+        gap: var(--space-1);
+        padding: var(--space-1) var(--space-2);
+    }
+
+    .filter-input {
+        min-height: 36px;
+    }
+
+    .navbar-icon-btn,
+    .filter-toggle {
+        min-height: 36px;
+        width: 36px;
+        height: 36px;
+    }
+
+    .cat-drop-btn {
+        padding: 2px 10px;
+        font-size: var(--text-xs);
+    }
+
+    .placeholder-caption {
+        display: none;
+    }
+
+    .placeholder-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .placeholder-text {
+        font-size: var(--text-xs);
+    }
+
+    .cell-play-btn {
+        padding: 6px 14px;
+        font-size: var(--text-xs);
+    }
+
+    .cell-play-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .camera-grid.scroll-feed {
+        scroll-behavior: auto;
+    }
+}
+
+/* Navigasi mobile menyatu (<=1100px atau perangkat sentuh): perlakuan
+   identik dengan mobile <=768px — baris pencarian penuh, kontrol rinci
+   di sheet. Tanpa hamburger/toggle. */
+@media (max-width: 1100px), (hover: none) {
+    .navbar-inner {
+        flex-wrap: wrap;
+        padding: var(--space-1) var(--space-2);
+        gap: var(--space-2);
+        border-radius: var(--radius-pill);
+        width: auto;
+        max-width: 95%;
+    }
+
+    .filter-divider {
+        display: none;
+    }
+
+    #status-filter {
+        display: none;
+    }
+
+    .search-row {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        width: 100%;
+    }
+
+    .filter-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+    }
+
+    .filter-input {
+        flex: 1;
+        min-width: 0;
+        min-height: 44px;
+        padding: var(--space-2) var(--space-2) var(--space-2) 36px;
+        background-color: var(--glass-bg-light);
+        border-radius: var(--radius-md);
+    }
+
+    .navbar-icon-btn {
+        min-height: 44px;
+    }
+
+    #refresh-btn,
+    #select-btn {
+        display: none;
+    }
+
+    .filter-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+    }
+
+    .navbar-link {
+        width: 100%;
+        text-align: center;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+#nav-toggle {
+    display: none;
+}
+
+@media (max-width: 1100px), (hover: none) {
+    /* Floating pill: lingkaran 48px <-> kapsul 380px. Wadah #navbar
+       hanya positioning context; yang beranimasi adalah pilnya. */
+    #navbar {
+        position: fixed;
+        top: calc(env(safe-area-inset-top, 0px) + 24px);
+        left: 0;
+        right: 0;
+        z-index: 300;
+        padding: 0;
+        margin: 0;
+        pointer-events: none;
+        display: flex;
+        justify-content: center;
+    }
+
+    #navbar.hidden {
+        transform: none;
+        opacity: 1;
+    }
+
+    .navbar-inner {
+        display: flex;
+        align-items: center;
+        width: 48px;
+        height: 48px;
+        padding: 0;
+        gap: 0;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(37, 37, 38, 0.9);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        border: 0.5px solid var(--glass-border);
+        transition:
+            width 0.3s ease,
+            opacity 0.3s ease;
+        pointer-events: none;
+    }
+
+    #navbar.nav-open .navbar-inner {
+        width: min(380px, calc(100vw - 32px));
+        pointer-events: auto;
+    }
+
+    #navbar.hidden .navbar-inner {
+        opacity: 0;
+    }
+
+    #nav-toggle {
+        display: flex;
+        flex: none;
+        width: 48px;
+        height: 48px;
+        position: relative;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: none;
+        color: var(--color-text-primary);
+        cursor: pointer;
+        pointer-events: auto;
+    }
+
+    #nav-toggle .icon-menu,
+    #nav-toggle .icon-close {
+        position: absolute;
+        inset: 0;
+        margin: auto;
+        transition:
+            opacity 0.3s ease,
+            transform 0.3s ease;
+    }
+
+    #nav-toggle .icon-menu {
+        opacity: 1;
+        transform: none;
+    }
+
+    #nav-toggle.open .icon-menu {
+        opacity: 0;
+        transform: rotate(90deg) scale(0.5);
+    }
+
+    #nav-toggle .icon-close {
+        opacity: 0;
+        transform: rotate(-90deg) scale(0.5);
+    }
+
+    #nav-toggle.open .icon-close {
+        opacity: 1;
+        transform: none;
+    }
+
+    .nav-expand {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 0;
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        opacity: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        pointer-events: none;
+        transform: translateX(-8px);
+        transition:
+            opacity 0.3s ease,
+            transform 0.3s ease;
+    }
+
+    #navbar.nav-open .nav-expand {
+        width: auto;
+        opacity: 1;
+        pointer-events: auto;
+        transform: none;
+        transition-delay: 0.075s;
+    }
+
+    .nav-expand > .search-row {
+        flex: 1;
+        min-width: 0;
+        width: auto;
+    }
+
+    .nav-expand #refresh-btn,
+    .nav-expand #select-btn {
+        display: none;
+    }
+
+    .navbar-inner > :not(#nav-toggle):not(.nav-expand) {
+        display: none;
+    }
+
+    body:has(.camera-cell.fullscreen) #navbar,
+    body:has(.camera-grid.grid-fullscreen) #navbar {
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #navbar,
+    #nav-toggle,
+    .navbar-inner,
+    .nav-expand,
+    #nav-toggle svg {
+        transition: none;
+    }
+}
+
+/* Dropdown kategori: tombol ringkas + panel checkbox (pengganti deret chip) */
+.cat-drop {
+    position: relative;
+}
+
+.cat-drop-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    border: 0.5px solid var(--glass-border);
+    background: transparent;
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-pill);
+    padding: 4px 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-sans);
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        opacity 0.2s ease;
+}
+
+.cat-drop-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.cat-drop-btn svg {
+    transition: transform 0.2s ease;
+}
+
+.cat-drop.open .cat-drop-btn svg {
+    transform: rotate(180deg);
+}
+
+.cat-drop-btn:focus-visible,
+.cat-check:focus-within {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.cat-drop-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 220px;
+    max-width: calc(100vw - 32px);
+    max-height: min(320px, 60vh);
+    overflow-y: auto;
+    background: var(--glass-bg);
+    border: 0.5px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-1);
+    z-index: calc(var(--z-overlay) + 1);
+}
+
+.cat-drop.open .cat-drop-panel {
+    display: block;
+}
+
+.cat-reset {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-bottom: 0.5px solid var(--glass-border);
+    color: var(--color-text-primary);
+    font-size: var(--text-sm);
+    font-family: var(--font-sans);
+    padding: var(--space-2) var(--space-3);
+    min-height: 44px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+}
+
+.cat-reset:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.cat-check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 44px;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary);
+    cursor: pointer;
+}
+
+.cat-check:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.cat-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex: none;
+    accent-color: var(--color-success);
+    cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cat-drop-btn,
+    .cat-drop-btn svg {
+        transition: none;
+    }
+}
+
+/* Filter sheet: komponen global (bukan khusus <=768px) agar berfungsi
+   di semua tempat toggle/sheet tersedia: HP, iPad, dan jendela <=1100px. */
+.filter-sheet-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-overlay) + 1);
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.filter-sheet-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.filter-sheet {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: calc(var(--z-overlay) + 2);
+    background: var(--color-surface);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 55vh;
+}
+
+.filter-sheet.open {
+    transform: translateY(0);
+}
+
+.filter-sheet-handle {
+    width: 36px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    margin: var(--space-2) auto 0;
+    flex-shrink: 0;
+}
+
+.filter-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 0.5px solid var(--glass-border);
+    flex-shrink: 0;
+}
+
+.filter-sheet-header h2 {
+    font-size: var(--text-base);
+    font-weight: 600;
+}
+
+.filter-sheet-close {
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+}
+
+.filter-sheet-close:hover {
+    color: var(--color-text-primary);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.filter-sheet-body {
+    padding: var(--space-3) var(--space-4);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.filter-sheet-select {
+    width: 100%;
+    min-height: 44px;
+    padding: var(--space-2) var(--space-5) var(--space-2) var(--space-3);
+    border: 0.5px solid var(--glass-border);
+    background: var(--glass-bg-light);
+    color: var(--color-text-primary);
+    font-size: var(--text-sm);
+    font-family: var(--font-sans);
+    border-radius: var(--radius-md);
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+}
+
+.filter-sheet-select option {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+}
+
+.filter-sheet-buttons {
+    display: flex;
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+}
+
+.filter-sheet-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+    border: 0.5px solid var(--glass-border);
+    background: var(--glass-bg-light);
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition:
+        color 0.2s,
+        border-color 0.2s;
+}
+
+.filter-sheet-btn:hover {
+    color: var(--color-text-primary);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .filter-sheet,
+    .filter-sheet-overlay {
+        transition: none;
+    }
 }

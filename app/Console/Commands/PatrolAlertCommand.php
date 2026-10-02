@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Camera;
 use App\Models\Category;
 use App\Models\PatrolLog;
+use App\Models\Setting;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -16,7 +17,8 @@ class PatrolAlertCommand extends Command
 
     public function handle(): int
     {
-        $patrolCategoryId = Category::where('slug', 'patroli')->value('id');
+        $prioritySlug = strtolower((string) Setting::get('playback_priority_category', 'patroli'));
+        $patrolCategoryId = Category::where('slug', $prioritySlug)->value('id');
 
         if (! $patrolCategoryId) {
             $this->warn('Patrol category not found.');

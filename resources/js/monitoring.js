@@ -33,7 +33,22 @@ let cameras = CAMERAS;
 let camerasMap = new Map(cameras.map((c) => [c.id, c]));
 let currentCameraStates = {};
 let searchQuery = "";
-let selectedCategory = "";
+const CATEGORY_SET_KEY = "monitoring.categories.v1";
+const allCategorySlugs = () => [...new Set(cameras.map((c) => c.category))];
+function loadCategorySet() {
+    try {
+        const raw = JSON.parse(localStorage.getItem(CATEGORY_SET_KEY) || "null");
+        if (Array.isArray(raw)) {
+            const known = new Set(allCategorySlugs());
+            const valid = raw.filter((s) => typeof s === "string" && known.has(s));
+            if (valid.length > 0) return new Set(valid);
+        }
+    } catch {
+        /* abaikan, pakai semua */
+    }
+    return new Set(allCategorySlugs());
+}
+let selectedCategories = loadCategorySet();
 let selectedStatus = "online";
 let fullscreenCameraId = null;
 let gridFullscreen = false;
@@ -94,7 +109,7 @@ function pollPatrolToast() {
         .then((res) => res.json())
         .then((data) => {
             const patrolCameras = data.cameras?.filter(
-                (c) => c.category === "patroli"
+                (c) => (c.category || "").toLowerCase() === PRIORITY_CATEGORY
             ) ?? [];
             const liveCount = patrolCameras.filter(
                 (c) => c.status === "online"
@@ -118,17 +133,17 @@ const STAGGER_DELAY_MS = playbackInt("playback_stagger_ms", 350);
 const PRIORITY_CATEGORY = playbackString(
     "playback_priority_category",
     "patroli",
-);
+).toLowerCase();
 let _activeStreamInit = 0;
 let _streamQueue = [];
 
 const grid = document.getElementById("camera-grid");
 const cameraNames = new Map(cameras.map((c) => [c.id, c.name]));
 const searchInput = document.getElementById("search");
-const categoryFilter = document.getElementById("category-filter");
 const statusFilter = document.getElementById("status-filter");
 const liveCounter = document.getElementById("live-counter");
 const manualPlayIds = new Set();
+const mutedIds = new Set();
 const cameraCount = document.getElementById("camera-count");
 const navbar = document.getElementById("navbar");
 
@@ -187,8 +202,8 @@ function getFilteredIds() {
         filtered = filtered.filter((c) => c.status !== "online");
     }
 
-    if (selectedCategory) {
-        filtered = filtered.filter((c) => c.category === selectedCategory);
+    if (selectedCategories.size > 0) {
+        filtered = filtered.filter((c) => selectedCategories.has(c.category));
     }
 
     if (searchQuery) {
@@ -399,7 +414,7 @@ async function initStream(cell, camera, targetUrl) {
 
             const isAdaptive =
                 Boolean(camera.adaptive_url) ||
-                (camera.category || "").toLowerCase() === "patroli";
+                (camera.category || "").toLowerCase() === PRIORITY_CATEGORY;
 
             const manager = new StreamManager(
                 camera.id,
@@ -437,18 +452,21 @@ function createCameraCell(camera) {
     }
     cell.innerHTML = `
         <div class="camera-placeholder">
-          <button class="cell-play-btn" style="display:none" aria-label="Putar tayangan"></button>
-          <span class="placeholder-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="2" y="4" width="20" height="16" rx="2"/>
-            <path d="M10 9l5 3-5 3V9z"/>
-          </svg>
-          </span>
-          <span class="placeholder-text">Loading stream...</span>
+          <div class="placeholder-status-row">
+            <span class="placeholder-icon" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="16" rx="2"/>
+              <path d="M10 9l5 3-5 3V9z"/>
+            </svg>
+            </span>
+            <span class="placeholder-text">Loading stream...</span>
+          </div>
           <span class="placeholder-caption">${escapeHtml(camera.name || "")}</span>
+          <button class="cell-play-btn" style="display:none" aria-label="Putar tayangan"></button>
         </div>
         <video muted autoplay playsinline></video>
         <button class="cell-pause-btn" style="display:none" aria-label="Berhenti memutar"></button>
+        <button class="cell-speak-toggle" style="display:none" aria-label="Nyalakan suara"></button>
         <div class="camera-placeholder-info">
           <span class="status-badge ${escapeHtml(camera.status || "offline")}">${escapeHtml(camera.name || "")} - ${escapeHtml(camera.status || "")}</span>
         </div>
@@ -646,6 +664,10 @@ function applyFilters() {
 
     const vw = window.innerWidth;
     const vh = grid.clientHeight || window.innerHeight;
+    // Lanskap pendek (HP landscape): tampilkan sebagai umpan scroll
+    // vertikal alih-alih force-fit yang menghasilkan irisan tipis.
+    const shortLandscape = vh <= 500 && vw > vh;
+    grid.classList.toggle("scroll-feed", shortLandscape);
     const targetAspect = 16 / 9;
     const isMobile = vw <= 768;
     const isLandscape = vw > vh;
@@ -697,6 +719,10 @@ function applyFilters() {
 
     grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    if (shortLandscape) {
+        grid.style.gridTemplateColumns = `repeat(${vw < 600 ? 1 : 2}, 1fr)`;
+        grid.style.gridTemplateRows = "";
+    }
 
     let emptyMsg = grid.querySelector(".empty-message");
     if (visibleCount === 0) {
@@ -716,6 +742,7 @@ function applyFilters() {
         const selected = cameraSelection === null ? cameras.length : cameraSelection.size;
         cameraCount.textContent = `${visibleCount} visible / ${selected} selected`;
     }
+    syncCategoryDropdowns();
     refreshCellStates();
 }
 
@@ -774,6 +801,7 @@ function resetCellToPlaceholder(id) {
     const video = cell.querySelector("video");
     if (video) video.style.display = "none";
     updatePlayButton(cell, camera);
+    updateSpeakerButton(cell, camera);
 }
 
 function enforceAutoPlayCap() {
@@ -789,8 +817,8 @@ function enforceAutoPlayCap() {
     updateLiveCounter();
 }
 
-const ICON_PLAY = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>`;
-const ICON_STOP = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>`;
+const ICON_PLAY = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>`;
+const ICON_STOP = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="12" height="12" x="6" y="6" rx="1"/></svg>`;
 
 const ICON_OFFLINE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.66 6H14a2 2 0 0 1 2 2v2.34l1 1L22 8v8"/><path d="M16 16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2l10 10Z"/><line x1="2" x2="22" y1="2" y2="22"/></svg>`;
 
@@ -832,7 +860,10 @@ function updatePlayButton(cell, camera) {
     const showPlay = online && !playing;
     const showPause = online && playing && isManual;
     playBtn.style.display = showPlay ? "" : "none";
-    if (showPlay) playBtn.innerHTML = ICON_PLAY;
+    if (showPlay) {
+        playBtn.innerHTML = `${ICON_PLAY}<span>Putar</span>`;
+        playBtn.setAttribute("aria-label", "Putar tayangan");
+    }
     pauseBtn.style.display = showPause ? "" : "none";
     if (showPause) pauseBtn.innerHTML = ICON_STOP;
     cell.classList.toggle("manual-playing", showPause);
@@ -849,6 +880,18 @@ function refreshCellStates() {
         }
         if (streamManagers.has(id)) {
             updatePlayButton(cell, camera);
+            updateSpeakerButton(cell, camera);
+            const pm = streamManagers.get(id);
+            if (pm && pm.userPaused) {
+                const ph2 = cell.querySelector(".camera-placeholder");
+                const pt2 = ph2?.querySelector(".placeholder-text");
+                if (pt2) pt2.textContent = "Dijeda";
+                ph2?.classList.remove("placeholder-hidden");
+                const pb = cell.querySelector(".cell-play-btn");
+                if (pb) pb.style.display = "none";
+                const sb2 = cell.querySelector(".cell-pause-btn");
+                if (sb2) sb2.style.display = manualPlayIds.has(id) ? "" : "none";
+            }
             return;
         }
         if (targets.has(id)) {
@@ -863,6 +906,7 @@ function refreshCellStates() {
         resetCellToPlaceholder(id);
     });
     updateLiveCounter();
+    updateFsBar();
 }
 
 function updateLiveCounter() {
@@ -903,7 +947,226 @@ function toggleManualPlay(cameraId) {
     refreshCellStates();
 }
 
-   function suspendOtherStreams(activeId) {
+   const ICON_SOUND_ON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+const ICON_SOUND_OFF = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="23" x2="17" y1="9" y2="15"/><line x1="17" x2="23" y1="9" y2="15"/></svg>`;
+
+function updateSpeakerButton(cell, camera) {
+    let btn = cell.querySelector(".cell-speak-toggle");
+    if (!btn) {
+        btn = document.createElement("button");
+        btn.className = "cell-speak-toggle";
+        btn.style.display = "none";
+        btn.setAttribute("aria-label", "Nyalakan suara");
+        const info = cell.querySelector(".camera-placeholder-info");
+        if (info) info.appendChild(btn);
+        else cell.appendChild(btn);
+    }
+    if (cell.classList.contains("fullscreen")) {
+        btn.style.display = "none";
+        btn.classList.remove("speaking");
+        cell.classList.remove("has-live-control");
+        return;
+    }
+    const mgr = streamManagers.get(camera.id);
+    const show = camera.status === "online" && !!mgr && mgr.hasAudio;
+    btn.style.display = show ? "" : "none";
+    cell.classList.toggle("has-live-control", show);
+    if (!show) {
+        btn.classList.remove("speaking");
+        return;
+    }
+    const speaking = !mgr.video.muted;
+    btn.innerHTML = speaking ? ICON_SOUND_ON : ICON_SOUND_OFF;
+    btn.setAttribute("aria-label", speaking ? "Bisukan" : "Nyalakan suara");
+    btn.classList.toggle("speaking", speaking);
+}
+
+function refreshSpeakerButton(cameraId) {
+    const cell = document.querySelector(`.camera-cell[data-id="${cameraId}"]`);
+    const camera = camerasMap.get(cameraId);
+    if (cell && camera) updateSpeakerButton(cell, camera);
+}
+
+function toggleMute(cameraId) {
+    const camera = camerasMap.get(cameraId);
+    const mgr = streamManagers.get(cameraId);
+    if (!camera || camera.status !== "online" || !mgr || !mgr.hasAudio) return;
+    if (mgr.video && !mgr.video.muted) {
+        setCellMuted(cameraId, true);
+    } else {
+        setCellMuted(cameraId, false);
+        attemptPlay(mgr);
+    }
+    refreshCellStates();
+}
+
+const ICON_PAUSE = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`;
+
+let fsBar = null;
+let fsBarVideo = null;
+let fsScrubbing = false;
+
+function fsSel(act) {
+    return fsBar ? fsBar.querySelector(`[data-act="${act}"]`) : null;
+}
+
+function fsCurrentManager() {
+    return fullscreenCameraId === null ? null : streamManagers.get(fullscreenCameraId) || null;
+}
+
+function setCellMuted(id, muted) {
+    const mgr = streamManagers.get(id);
+    if (!mgr) return;
+    mgr.setMuted(muted);
+    if (muted) mutedIds.add(id);
+    else mutedIds.delete(id);
+    refreshSpeakerButton(id);
+}
+
+function attemptPlay(mgr) {
+    try {
+        const played = mgr.video && mgr.video.play();
+        if (played && typeof played.catch === "function") played.catch(() => {});
+    } catch {
+        /* older browser without play() promise */
+    }
+}
+
+function toggleFsPlay() {
+    const id = fullscreenCameraId;
+    if (id === null) return;
+    const mgr = streamManagers.get(id);
+    if (!mgr) return;
+    if (mgr.userPaused || (mgr.video && mgr.video.paused)) mgr.resumeUser();
+    else mgr.pauseUser();
+    updateFsBar();
+    refreshCellStates();
+}
+
+function initFsBar() {
+    if (fsBar) return;
+    fsBar = document.createElement("div");
+    fsBar.id = "fs-controls";
+    fsBar.style.display = "none";
+    fsBar.innerHTML = `
+        <button data-act="play" aria-label="Jeda"></button>
+        <button data-act="back" aria-label="Mundur 10 detik">&minus;10s</button>
+        <input data-act="seek" type="range" min="0" max="1" step="0.1" value="1" aria-label="Posisi tayangan">
+        <button data-act="live" aria-label="Kembali ke siaran langsung">\u25CF LIVE</button>
+        <button data-act="mute" aria-label="Bisukan"></button>
+        <input data-act="vol" type="range" min="0" max="100" value="100" aria-label="Volume">`;
+    fsBar.querySelector('[data-act="play"]').addEventListener("click", () => toggleFsPlay());
+    fsBar.querySelector('[data-act="back"]').addEventListener("click", () => {
+        const m = fsCurrentManager();
+        if (m) {
+            m.seekBy(-10);
+            updateFsBar();
+        }
+    });
+    fsBar.querySelector('[data-act="live"]').addEventListener("click", () => {
+        const m = fsCurrentManager();
+        if (m) {
+            m.syncToLiveEdge();
+            updateFsBar();
+        }
+    });
+    fsBar.querySelector('[data-act="mute"]').addEventListener("click", () => {
+        if (fullscreenCameraId !== null) {
+            toggleMute(fullscreenCameraId);
+            updateFsBar();
+        }
+    });
+    const seekEl = fsBar.querySelector('[data-act="seek"]');
+    seekEl.addEventListener("pointerdown", () => {
+        fsScrubbing = true;
+    });
+    window.addEventListener("pointerup", () => {
+        if (fsScrubbing) {
+            fsScrubbing = false;
+            updateFsBar();
+        }
+    });
+    seekEl.addEventListener("input", () => {
+        const m = fsCurrentManager();
+        if (m) {
+            m.seekTo(parseFloat(seekEl.value));
+            updateFsBar();
+        }
+    });
+    const volEl = fsBar.querySelector('[data-act="vol"]');
+    volEl.addEventListener("input", () => {
+        const id = fullscreenCameraId;
+        const m = id === null ? null : streamManagers.get(id);
+        if (!m || !m.video || id === null) return;
+        const val = Math.max(0, Math.min(100, parseInt(volEl.value, 10) || 0)) / 100;
+        m.video.volume = val;
+        setCellMuted(id, val <= 0);
+        if (val > 0) attemptPlay(m);
+        updateFsBar();
+    });
+    document.body.appendChild(fsBar);
+}
+
+function onFsBarTime() {
+    updateFsBar();
+}
+
+function bindFsBar(cameraId) {
+    if (fsBarVideo) fsBarVideo.removeEventListener("timeupdate", onFsBarTime);
+    const mgr = streamManagers.get(cameraId);
+    fsBarVideo = (mgr && mgr.video) || null;
+    if (fsBarVideo) fsBarVideo.addEventListener("timeupdate", onFsBarTime);
+    updateFsBar();
+}
+
+function unbindFsBar() {
+    if (fsBarVideo) fsBarVideo.removeEventListener("timeupdate", onFsBarTime);
+    fsBarVideo = null;
+    updateFsBar();
+}
+
+function updateFsBar() {
+    if (!fsBar) return;
+    const id = fullscreenCameraId;
+    const mgr = id === null ? null : streamManagers.get(id) || null;
+    if (!mgr || !mgr.video) {
+        fsBar.style.display = "none";
+        return;
+    }
+    fsBar.style.display = "";
+    const v = mgr.video;
+    const paused = !!mgr.userPaused || v.paused;
+    const playBtn = fsSel("play");
+    playBtn.innerHTML = paused ? ICON_PLAY : ICON_PAUSE;
+    playBtn.setAttribute("aria-label", paused ? "Lanjutkan" : "Jeda");
+    const seek = fsSel("seek");
+    const w = mgr.getDvrWindow();
+    if (!w || !(w.end > w.start)) {
+        seek.disabled = true;
+    } else {
+        seek.disabled = false;
+        seek.min = String(w.start);
+        seek.max = String(w.end);
+        if (!fsScrubbing) seek.value = String(v.currentTime);
+    }
+    const behind = mgr.secondsBehindLive();
+    const liveBtn = fsSel("live");
+    if (behind > 4) {
+        liveBtn.classList.add("behind");
+        liveBtn.textContent = `\u2212${Math.round(behind)}s LIVE`;
+    } else {
+        liveBtn.classList.remove("behind");
+        liveBtn.textContent = "\u25CF LIVE";
+    }
+    const muted = v.muted;
+    const muteBtn = fsSel("mute");
+    muteBtn.innerHTML = muted ? ICON_SOUND_OFF : ICON_SOUND_ON;
+    muteBtn.setAttribute("aria-label", muted ? "Nyalakan suara" : "Bisukan");
+    const vol = fsSel("vol");
+    vol.value = String(Math.round((v.volume ?? 1) * 100));
+}
+
+function suspendOtherStreams(activeId) {
     streamManagers.forEach((manager, id) => {
         if (id !== activeId) manager.suspend();
     });
@@ -948,6 +1211,8 @@ function switchFullscreen(newCameraId) {
     scheduleNavbarHide();
 
     ensureTempFullscreenStream(newCameraId);
+    bindFsBar(newCameraId);
+    closeMobileNav();
 
     streamManagers.forEach((mgr, id) => {
         if (id !== newCameraId) mgr.suspend();
@@ -967,6 +1232,8 @@ function enterFullscreen(cameraId) {
     cell.focus();
     suspendOtherStreams(cameraId);
     ensureTempFullscreenStream(cameraId);
+    bindFsBar(cameraId);
+    closeMobileNav();
     clearTimeout(navbarTimeout);
     navbar.classList.add("hidden");
     const camera = camerasMap.get(cameraId);
@@ -986,6 +1253,7 @@ function exitFullscreen() {
     fullscreenCameraId = null;
     cleanupTempFullscreenStream();
     enforceAutoPlayCap();
+    unbindFsBar();
     showNavbar();
     resumeAllStreams();
     announce("Exited fullscreen view");
@@ -998,6 +1266,7 @@ function enterGridFullscreen() {
     gridFullscreen = true;
     grid.classList.add("grid-fullscreen");
     document.body.classList.add("grid-fs");
+    closeMobileNav();
     showNavbar();
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen?.()?.catch(() => {});
@@ -1030,6 +1299,8 @@ function handleFullscreenChange() {
         }
         suspendOtherStreams(id);
         ensureTempFullscreenStream(id);
+        bindFsBar(id);
+        closeMobileNav();
         const camera = camerasMap.get(id);
         const displayName = camera?.name || "";
         announce(`${displayName} - fullscreen view`);
@@ -1052,7 +1323,12 @@ document.addEventListener("fullscreenchange", handleFullscreenChange);
 document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
 
 function scheduleNavbarHide() {
-    if (window.innerWidth <= 768) return;
+    if (
+        fullscreenCameraId === null &&
+        !gridFullscreen &&
+        (window.innerWidth <= 1100 || window.matchMedia("(hover: none)").matches)
+    )
+        return;
     clearTimeout(navbarTimeout);
     const delay =
         fullscreenCameraId !== null
@@ -1235,10 +1511,70 @@ searchInput?.addEventListener(
     }, 150),
 );
 
-categoryFilter?.addEventListener("change", (e) => {
-    selectedCategory = e.target.value;
-    applyFilters();
+function getCategoryDropdowns() {
+    return [...document.querySelectorAll("[data-cat-dropdown]")];
+}
+
+function syncCategoryDropdowns() {
+    const all = allCategorySlugs();
+    const full = all.length > 0 && all.every((s) => selectedCategories.has(s));
+    const label = full || selectedCategories.size === 0 ? "Semua" : `Kategori (${selectedCategories.size})`;
+    getCategoryDropdowns().forEach((drop) => {
+        const effective = selectedCategories.size === 0 ? new Set(all) : selectedCategories;
+        drop.querySelectorAll('input[type="checkbox"][data-slug]').forEach((box) => {
+            box.checked = effective.has(box.value);
+        });
+        const lab = drop.querySelector("[data-cat-label]");
+        if (lab) lab.textContent = label;
+        const btn = drop.querySelector("[data-cat-button]");
+        if (btn) btn.setAttribute("aria-expanded", drop.classList.contains("open") ? "true" : "false");
+    });
+}
+
+function setCategoryDropdownOpen(drop, open) {
+    drop.classList.toggle("open", open);
+    const btn = drop.querySelector("[data-cat-button]");
+    if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function closeAllCategoryDropdowns(except = null) {
+    getCategoryDropdowns().forEach((d) => {
+        if (d !== except) setCategoryDropdownOpen(d, false);
+    });
+}
+
+getCategoryDropdowns().forEach((drop) => {
+    drop.querySelector("[data-cat-button]")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const willOpen = !drop.classList.contains("open");
+        closeAllCategoryDropdowns(drop);
+        setCategoryDropdownOpen(drop, willOpen);
+    });
+    drop.querySelector("[data-cat-reset]")?.addEventListener("click", () => {
+        selectedCategories = new Set();
+        persistCategorySet();
+        syncCategoryDropdowns();
+        applyFilters();
+    });
+    drop.addEventListener("change", (e) => {
+        const box = e.target.closest('input[type="checkbox"][data-slug]');
+        if (!box || !drop.contains(box)) return;
+        const checked = [...drop.querySelectorAll('input[type="checkbox"][data-slug]:checked')].map(
+            (b) => b.value,
+        );
+        selectedCategories = new Set(checked);
+        persistCategorySet();
+        syncCategoryDropdowns();
+        applyFilters();
+    });
 });
+document.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-cat-dropdown]")) closeAllCategoryDropdowns();
+});
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeAllCategoryDropdowns();
+});
+syncCategoryDropdowns();
 
 statusFilter?.addEventListener("change", (e) => {
     selectedStatus = e.target.value;
@@ -1251,8 +1587,13 @@ statusFilter?.addEventListener("change", (e) => {
         exitFullscreen();
         return;
     }
-    const playToggle = e.target.closest(".cell-play-btn, .cell-pause-btn");
+    const playToggle = e.target.closest(".cell-play-btn, .cell-pause-btn, .cell-speak-toggle");
     if (playToggle) {
+        if (e.target.closest(".cell-speak-toggle")) {
+            const speakCell = e.target.closest(".camera-cell");
+            if (speakCell) toggleMute(parseInt(speakCell.dataset.id, 10));
+            return;
+        }
         const toggleCell = e.target.closest(".camera-cell");
         if (toggleCell) toggleManualPlay(parseInt(toggleCell.dataset.id, 10));
         return;
@@ -1266,11 +1607,21 @@ statusFilter?.addEventListener("change", (e) => {
     }
 });
 
+grid?.addEventListener("stream-audio", (e) => {
+    const id = e.detail?.cameraId;
+    if (id === undefined || id === null) return;
+    const mgr = streamManagers.get(id);
+    if (mgr && mgr.hasAudio && !mutedIds.has(id) && mgr.video && !mgr.video.paused && mgr.video.muted) {
+        mgr.setMuted(false);
+    }
+    refreshSpeakerButton(id);
+});
+
 grid?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
         const closeBtn = e.target.closest(".fullscreen-close");
         if (closeBtn) return;
-        if (e.target.closest(".cell-play-btn, .cell-pause-btn")) return;
+        if (e.target.closest(".cell-play-btn, .cell-pause-btn, .cell-speak-toggle")) return;
         e.preventDefault();
         const cell = e.target.closest(".camera-cell");
         if (!cell) return;
@@ -1331,6 +1682,15 @@ document.addEventListener("keydown", (e) => {
         return;
     }
 
+    if (fullscreenCameraId !== null && !isInput && (e.key === " " || e.key === "m" || e.key === "M")) {
+        const t = e.target;
+        if (t && (t.tagName === "BUTTON" || t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA")) return;
+        e.preventDefault();
+        if (e.key === " ") toggleFsPlay();
+        else toggleMute(fullscreenCameraId);
+        return;
+    }
+
     if (e.key === "F11") {
         e.preventDefault();
         toggleFullscreen();
@@ -1354,13 +1714,12 @@ function initFilterSheet() {
     const sheet = document.getElementById("filter-sheet");
     const overlay = document.getElementById("filter-sheet-overlay");
     const closeBtn = document.getElementById("filter-sheet-close");
-    const catSelect = document.getElementById("category-filter-sheet");
     const statusSelect = document.getElementById("status-filter-sheet");
     const refreshBtn = document.getElementById("refresh-btn-sheet");
     const selectBtn = document.getElementById("select-btn-sheet");
 
     function openSheet() {
-        if (catSelect) catSelect.value = selectedCategory;
+        syncCategoryDropdowns();
         if (statusSelect) statusSelect.value = selectedStatus;
         sheet?.classList.add("open");
         overlay?.classList.add("open");
@@ -1381,14 +1740,6 @@ function initFilterSheet() {
         if (e.key === "Escape" && sheet?.classList.contains("open")) {
             closeSheet();
         }
-    });
-
-    catSelect?.addEventListener("change", function () {
-        const mainCat = document.getElementById("category-filter");
-        if (mainCat) mainCat.value = this.value;
-        selectedCategory = this.value;
-        closeSheet();
-        applyFilters();
     });
 
     statusSelect?.addEventListener("change", function () {
@@ -1417,11 +1768,6 @@ searchInput?.addEventListener("focus", () => {
     clearTimeout(navbarTimeout);
 });
 searchInput?.addEventListener("blur", scheduleNavbarHide);
-
-categoryFilter?.addEventListener("focus", () => {
-    clearTimeout(navbarTimeout);
-});
-categoryFilter?.addEventListener("blur", scheduleNavbarHide);
 
 statusFilter?.addEventListener("focus", () => {
     clearTimeout(navbarTimeout);
@@ -1550,8 +1896,33 @@ function initPage() {
     initObserver();
     initPatrolToast();
     initStaggeredBurst();
+    initFsBar();
     showNavbar();
     setInterval(pollLocalJson, 8000);
 }
 
 initPage();
+
+const navToggle = document.getElementById("nav-toggle");
+function closeMobileNav() {
+    navbar.classList.remove("nav-open");
+    if (navToggle) {
+        navToggle.classList.remove("open");
+        navToggle.setAttribute("aria-expanded", "false");
+        navToggle.setAttribute("aria-label", "Tampilkan navigasi filter");
+    }
+}
+navToggle?.addEventListener("click", () => {
+    const open = navbar.classList.toggle("nav-open");
+    navToggle.classList.toggle("open", open);
+    navToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    navToggle.setAttribute(
+        "aria-label",
+        open ? "Sembunyikan navigasi filter" : "Tampilkan navigasi filter",
+    );
+});
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && navbar.classList.contains("nav-open")) {
+        closeMobileNav();
+    }
+});

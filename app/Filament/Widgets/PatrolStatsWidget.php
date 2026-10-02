@@ -5,6 +5,7 @@ namespace App\Filament\Widgets;
 use App\Models\Camera;
 use App\Models\Category;
 use App\Models\PatrolLog;
+use App\Models\Setting;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -22,7 +23,8 @@ class PatrolStatsWidget extends StatsOverviewWidget
         $online = Camera::where('status', 'online')->count();
         $offline = Camera::where('status', 'offline')->count();
         $maintenance = Camera::where('maintenance', true)->count();
-        $patrolCategoryId = Category::where('slug', 'patroli')->value('id');
+        $prioritySlug = strtolower((string) Setting::get('playback_priority_category', 'patroli'));
+        $patrolCategoryId = Category::where('slug', $prioritySlug)->value('id');
         $patrolOnline = $patrolCategoryId
             ? Camera::where('category_id', $patrolCategoryId)->where('status', 'online')->count()
             : 0;

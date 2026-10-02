@@ -4,6 +4,8 @@ namespace Tests\Unit;
 
 use App\Models\Camera;
 use App\Models\Category;
+use App\Models\Setting;
+use App\Models\PatrolLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
@@ -82,6 +84,33 @@ class CameraCheckStatusCommandTest extends TestCase
 
         $camera->refresh();
         $this->assertEquals('offline', $camera->status);
+    }
+
+    public function test_counts_custom_priority_slug_from_settings(): void
+    {
+        Http::fake([
+            'https://example.com/stream.m3u8' => Http::response('', 200),
+        ]);
+
+        Setting::set('playback_priority_category', 'live-patroli');
+        $category = Category::factory()->create([
+            'name' => 'Live Patroli',
+            'slug' => 'live-patroli',
+        ]);
+
+        $camera = Camera::factory()->create([
+            'stream_url' => 'https://example.com/stream.m3u8',
+            'status' => 'offline',
+            'category_id' => $category->id,
+        ]);
+
+        $this->artisan('cameras:check-status')->assertSuccessful();
+
+        $this->assertEquals('online', $camera->fresh()->status);
+        $this->assertEquals(
+            1,
+            PatrolLog::latest('checked_at')->first()->patrol_online_count
+        );
     }
 
     public function test_resets_failure_counter_on_success(): void

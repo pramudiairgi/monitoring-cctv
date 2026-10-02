@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Camera;
 use App\Models\PatrolLog;
+use App\Models\Setting;
 use App\Rules\PublicHttpUrl;
 use App\Services\CameraExport;
 use Illuminate\Console\Command;
@@ -141,6 +142,7 @@ class CameraCheckStatusCommand extends Command
                 $response instanceof Response && $response->successful();
         }
 
+        $prioritySlug = strtolower((string) Setting::get('playback_priority_category', 'patroli'));
         $changed = 0;
         $onlineCount = 0;
         $offlineCount = 0;
@@ -191,8 +193,8 @@ class CameraCheckStatusCommand extends Command
                 $offlineCount++;
             }
 
-            // Patrol-specific counts
-            if (($camera->category?->slug ?? '') === 'patroli') {
+            // Priority-category counts (slug follows Playback Settings).
+            if (strtolower($camera->category?->slug ?? '') === $prioritySlug) {
                 if ($newStatus === 'online') {
                     $patrolOnlineCount++;
                 } else {

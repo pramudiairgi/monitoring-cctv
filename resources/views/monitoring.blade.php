@@ -25,7 +25,13 @@
   </div>
 
   <nav id="navbar" class="navbar" aria-label="Camera filters">
+    
     <div class="navbar-inner glass-panel">
+      <button id="nav-toggle" type="button" class="nav-toggle" aria-label="Tampilkan navigasi filter" aria-expanded="false" aria-controls="navbar">
+        <svg class="icon-menu" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>
+        <svg class="icon-close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      <div class="nav-expand">
       <div class="search-row">
         <svg class="filter-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="11" cy="11" r="8"/>
@@ -56,13 +62,7 @@
           </svg>
         </button>
       </div>
-      <div class="filter-divider"></div>
-      <select id="category-filter" class="filter-select" aria-label="Filter by category">
-        <option value="">All Categories</option>
-        @foreach($categories as $cat)
-          <option value="{{ $cat['value'] }}">{{ $cat['label'] }}</option>
-        @endforeach
-      </select>
+      </div>
       <div class="filter-divider"></div>
       <select id="status-filter" class="filter-select" aria-label="Filter by status">
         <option value="">All Status</option>
@@ -70,7 +70,19 @@
         <option value="offline">Offline</option>
       </select>
       <div class="filter-divider"></div>
-      <span id="live-counter" class="live-counter" aria-live="polite"></span>
+      <div class="cat-drop" data-cat-dropdown>
+        <button type="button" class="cat-drop-btn" data-cat-button aria-haspopup="true" aria-expanded="false">
+          <span data-cat-label>Semua</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="cat-drop-panel" role="group" aria-label="Pilih kategori">
+          <button type="button" class="cat-reset" data-cat-reset>Tampilkan semua</button>
+          @foreach($categories as $cat)
+            <label class="cat-check"><input type="checkbox" value="{{ $cat['value'] }}" data-slug="{{ $cat['value'] }}"><span>{{ $cat['label'] }}</span></label>
+          @endforeach
+        </div>
+      </div>
+
     </div>
   </nav>
 
@@ -85,20 +97,23 @@
            role="button"
            aria-label="{{ $c['name'] }} - {{ $c['status'] }}">
         <div class="camera-placeholder">
-          <button class="cell-play-btn" style="display:none" aria-label="Putar tayangan"></button>
-          <span class="placeholder-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="2" y="4" width="20" height="16" rx="2"/>
-              <path d="M10 9l5 3-5 3V9z"/>
-            </svg>
-          </span>
-          <span class="placeholder-text">Loading stream...</span>
+          <div class="placeholder-status-row">
+            <span class="placeholder-icon" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2" y="4" width="20" height="16" rx="2"/>
+                <path d="M10 9l5 3-5 3V9z"/>
+              </svg>
+            </span>
+            <span class="placeholder-text">Loading stream...</span>
+          </div>
           <span class="placeholder-caption">{{ $c['name'] }}</span>
+          <button class="cell-play-btn" style="display:none" aria-label="Putar tayangan"></button>
         </div>
         <video muted autoplay playsinline></video>
         <button class="cell-pause-btn" style="display:none" aria-label="Berhenti memutar"></button>
         <div class="camera-placeholder-info">
           <span class="status-badge {{ $c['status'] }}">{{ $c['name'] }} - {{ $c['status'] }}</span>
+          <button class="cell-speak-toggle" style="display:none" aria-label="Nyalakan suara"></button>
         </div>
         <button class="fullscreen-close" aria-label="Exit fullscreen">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -120,12 +135,18 @@
       </button>
     </div>
     <div class="filter-sheet-body">
-      <select id="category-filter-sheet" class="filter-sheet-select" aria-label="Filter by category">
-        <option value="">All Categories</option>
-        @foreach($categories as $cat)
-          <option value="{{ $cat['value'] }}">{{ $cat['label'] }}</option>
-        @endforeach
-      </select>
+      <div class="cat-drop" data-cat-dropdown>
+        <button type="button" class="cat-drop-btn" data-cat-button aria-haspopup="true" aria-expanded="false">
+          <span data-cat-label>Semua</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="cat-drop-panel" role="group" aria-label="Pilih kategori">
+          <button type="button" class="cat-reset" data-cat-reset>Tampilkan semua</button>
+          @foreach($categories as $cat)
+            <label class="cat-check"><input type="checkbox" value="{{ $cat['value'] }}" data-slug="{{ $cat['value'] }}"><span>{{ $cat['label'] }}</span></label>
+          @endforeach
+        </div>
+      </div>
       <select id="status-filter-sheet" class="filter-sheet-select" aria-label="Filter by status">
         <option value="">All Status</option>
         <option value="online" selected>Online</option>
