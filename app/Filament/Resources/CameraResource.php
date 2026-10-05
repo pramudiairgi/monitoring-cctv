@@ -149,9 +149,11 @@ class CameraResource extends Resource
                     ->boolean()
                     ->color(fn (bool $state): string => $state ? 'warning' : 'success')
                     ->label('Maintenance')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('order'),
+                TextColumn::make('order')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('created_at')
                     ->dateTime()
