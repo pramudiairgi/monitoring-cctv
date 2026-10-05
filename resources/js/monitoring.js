@@ -1024,6 +1024,38 @@ const ICON_PAUSE = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="tr
 let fsBar = null;
 let fsBarVideo = null;
 let fsScrubbing = false;
+let fsPrev = null;
+let fsNext = null;
+let fsIdleTimer = null;
+let fsShownAt = 0;
+
+const ICON_CHEV_LEFT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>`;
+const ICON_CHEV_RIGHT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>`;
+
+function stepFullscreen(dir) {
+    if (fullscreenCameraId === null) return;
+    const visible = getVisibleCameras();
+    if (visible.length <= 1) return;
+    const idx = visible.findIndex((c) => c.id === fullscreenCameraId);
+    if (idx === -1) return;
+    switchFullscreen(visible[(idx + dir + visible.length) % visible.length].id);
+}
+
+function fsChromeHidden() {
+    return document.body.classList.contains("fs-idle");
+}
+
+function showFsChrome() {
+    const wasHidden = fsChromeHidden();
+    document.body.classList.remove("fs-idle");
+    clearTimeout(fsIdleTimer);
+    if (wasHidden) fsShownAt = Date.now();
+    if (fullscreenCameraId !== null) {
+        fsIdleTimer = setTimeout(() => {
+            document.body.classList.add("fs-idle");
+        }, 3000);
+    }
+}
 
 function fsSel(act) {
     return fsBar ? fsBar.querySelector(`[data-act="${act}"]`) : null;
@@ -1068,12 +1100,16 @@ function initFsBar() {
     fsBar.id = "fs-controls";
     fsBar.style.display = "none";
     fsBar.innerHTML = `
+        <div class="fs-progress"><input data-act="seek" type="range" min="0" max="1" step="0.1" value="1" aria-label="Posisi tayangan"></div>
+        <div class="fs-row">
         <button data-act="play" aria-label="Jeda"></button>
         <button data-act="back" aria-label="Mundur 10 detik">&minus;10s</button>
-        <input data-act="seek" type="range" min="0" max="1" step="0.1" value="1" aria-label="Posisi tayangan">
+        <span class="fs-time" data-act="time" aria-label="Waktu tayangan"></span>
+        <span class="fs-spacer"></span>
         <button data-act="live" aria-label="Kembali ke siaran langsung">\u25CF LIVE</button>
         <button data-act="mute" aria-label="Bisukan"></button>
-        <input data-act="vol" type="range" min="0" max="100" value="100" aria-label="Volume">`;
+        <input data-act="vol" type="range" min="0" max="100" value="100" aria-label="Volume">
+        </div>`;
     fsBar.querySelector('[data-act="play"]').addEventListener("click", () => toggleFsPlay());
     fsBar.querySelector('[data-act="back"]').addEventListener("click", () => {
         const m = fsCurrentManager();
@@ -1124,6 +1160,20 @@ function initFsBar() {
         updateFsBar();
     });
     document.body.appendChild(fsBar);
+    fsPrev = document.createElement("button");
+    fsPrev.className = "fs-nav fs-prev";
+    fsPrev.setAttribute("aria-label", "Kamera sebelumnya");
+    fsPrev.innerHTML = ICON_CHEV_LEFT;
+    fsPrev.style.display = "none";
+    fsPrev.addEventListener("click", () => stepFullscreen(-1));
+    fsNext = document.createElement("button");
+    fsNext.className = "fs-nav fs-next";
+    fsNext.setAttribute("aria-label", "Kamera berikutnya");
+    fsNext.innerHTML = ICON_CHEV_RIGHT;
+    fsNext.style.display = "none";
+    fsNext.addEventListener("click", () => stepFullscreen(1));
+    document.body.appendChild(fsPrev);
+    document.body.appendChild(fsNext);
 }
 
 function onFsBarTime() {
@@ -1150,6 +1200,10 @@ function updateFsBar() {
     const mgr = id === null ? null : streamManagers.get(id) || null;
     if (!mgr || !mgr.video) {
         fsBar.style.display = "none";
+        if (fsPrev) fsPrev.style.display = "none";
+        if (fsNext) fsNext.style.display = "none";
+        clearTimeout(fsIdleTimer);
+        document.body.classList.remove("fs-idle");
         return;
     }
     fsBar.style.display = "";
@@ -1183,6 +1237,17 @@ function updateFsBar() {
     muteBtn.setAttribute("aria-label", muted ? "Nyalakan suara" : "Bisukan");
     const vol = fsSel("vol");
     vol.value = String(Math.round((v.volume ?? 1) * 100));
+    const timeEl = fsSel("time");
+    if (timeEl) {
+        const wall = new Date(Date.now() - behind * 1000);
+        const hh = String(wall.getHours()).padStart(2, "0");
+        const mm = String(wall.getMinutes()).padStart(2, "0");
+        const ss = String(wall.getSeconds()).padStart(2, "0");
+        timeEl.textContent = `${hh}:${mm}:${ss}`;
+    }
+    const navCount = getVisibleCameras().length;
+    if (fsPrev) fsPrev.style.display = navCount > 1 ? "" : "none";
+    if (fsNext) fsNext.style.display = navCount > 1 ? "" : "none";
 }
 
 function suspendOtherStreams(activeId) {
@@ -1232,6 +1297,7 @@ function switchFullscreen(newCameraId) {
     ensureTempFullscreenStream(newCameraId);
     bindFsBar(newCameraId);
 
+    showFsChrome();
     streamManagers.forEach((mgr, id) => {
         if (id !== newCameraId) mgr.suspend();
     });
@@ -1251,6 +1317,7 @@ function enterFullscreen(cameraId) {
     suspendOtherStreams(cameraId);
     ensureTempFullscreenStream(cameraId);
     bindFsBar(cameraId);
+    showFsChrome();
     clearTimeout(navbarTimeout);
     navbar.classList.add("hidden");
     const camera = camerasMap.get(cameraId);
@@ -1611,6 +1678,8 @@ statusFilter?.addEventListener("change", (e) => {
     if (!cell) return;
     if (fullscreenCameraId === null) {
         enterFullscreen(parseInt(cell.dataset.id, 10));
+    } else if (fsChromeHidden() || Date.now() - fsShownAt < 600) {
+        showFsChrome();
     } else {
         exitFullscreen();
     }
@@ -2023,6 +2092,12 @@ function initFilterSheet() {
 
 navbar?.addEventListener("mouseenter", showNavbar);
 document.addEventListener("mousemove", throttle(showNavbar, 100));
+document.addEventListener("pointermove", throttle(() => {
+    if (fullscreenCameraId !== null) showFsChrome();
+}, 500));
+document.addEventListener("touchstart", () => {
+    if (fullscreenCameraId !== null) showFsChrome();
+}, { passive: true });
 document.addEventListener("touchstart", showNavbar);
 searchInput?.addEventListener("focus", () => {
     clearTimeout(navbarTimeout);

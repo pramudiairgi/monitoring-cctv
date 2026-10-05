@@ -224,7 +224,9 @@ body {
     cursor: pointer;
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
-    transition: background var(--duration-fast) var(--easing-default);
+    transition:
+        background var(--duration-fast) var(--easing-default),
+        opacity 0.3s ease;
 }
 
 .camera-cell.fullscreen .fullscreen-close {
@@ -1230,73 +1232,106 @@ body.grid-fs .navbar {
 /* Bilah kontrol fullscreen: play, mundur, seekbar, live, mute, volume */
 #fs-controls {
     position: fixed;
-    left: 50%;
-    bottom: 16px;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: calc(var(--z-close) + 2);
     display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 28px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+    transition: opacity 0.3s ease;
+}
+
+.fs-progress {
+    display: flex;
+    padding: 0 2px;
+}
+
+.fs-progress input[data-act="seek"] {
+    flex: 1;
+    min-width: 0;
+}
+
+.fs-row {
+    display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
-    border-radius: var(--radius-pill);
-    background: rgba(0, 0, 0, 0.65);
-    border: 0.5px solid rgba(255, 255, 255, 0.15);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
+    gap: 6px;
+}
+
+.fs-time {
+    font-size: 12px;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.fs-spacer {
+    flex: 1;
 }
 
 #fs-controls button {
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    background: transparent;
     color: #fff;
     cursor: pointer;
-    border-radius: var(--radius-pill);
-    height: 36px;
-    min-width: 36px;
-    padding: 0 10px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    flex: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: var(--text-sm);
-    font-family: var(--font-sans);
-    transition:
-        background 0.2s ease,
-        transform 0.2s ease;
+    transition: background 0.2s ease;
 }
 
 #fs-controls button:hover {
-    background: rgba(255, 255, 255, 0.18);
-    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.15);
 }
 
 #fs-controls button svg {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
+}
+
+#fs-controls button[data-act="back"] {
+    width: auto;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: var(--radius-pill);
+    font-size: var(--text-sm);
+    font-family: var(--font-sans);
 }
 
 #fs-controls button[data-act="live"] {
+    width: auto;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
     font-size: var(--text-xs);
     letter-spacing: 0.04em;
     white-space: nowrap;
+    font-family: var(--font-sans);
 }
 
 #fs-controls button[data-act="live"].behind {
-    background: rgba(245, 158, 11, 0.85);
+    background: #f03;
     border-color: transparent;
-    color: #000;
+    color: #fff;
 }
 
 #fs-controls input[type="range"] {
-    accent-color: #10b981;
+    accent-color: #f03;
     cursor: pointer;
-}
-
-#fs-controls input[data-act="seek"] {
-    width: min(40vw, 320px);
 }
 
 #fs-controls input[data-act="vol"] {
     width: 80px;
+    accent-color: #fff;
 }
 
 #fs-controls input[type="range"]:disabled {
@@ -1304,16 +1339,76 @@ body.grid-fs .navbar {
     cursor: default;
 }
 
+body.fs-idle #fs-controls,
+body.fs-idle .fs-nav,
+body.fs-idle .camera-cell.fullscreen .fullscreen-close {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.fs-nav {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 500;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    border: 0.5px solid rgba(255, 255, 255, 0.2);
+    border-radius: 9999px;
+    color: #fff;
+    cursor: pointer;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.fs-nav:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.fs-nav:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.fs-nav svg {
+    width: 20px;
+    height: 20px;
+}
+
+.fs-prev {
+    left: calc(12px + env(safe-area-inset-left, 0px));
+}
+
+.fs-next {
+    right: calc(12px + env(safe-area-inset-right, 0px));
+}
+
 @media (max-width: 768px), (hover: none) and (max-width: 1400px) {
     #fs-controls {
-        bottom: 8px;
-        gap: 8px;
-        padding: 8px 12px;
-        max-width: calc(100vw - 16px);
+        padding-left: 8px;
+        padding-right: 8px;
     }
 
-    #fs-controls input[data-act="seek"] {
-        width: 28vw;
+    .fs-row {
+        gap: 2px;
+    }
+
+    #fs-controls button {
+        width: 36px;
+        height: 36px;
+    }
+
+    #fs-controls button[data-act="back"] {
+        height: 36px;
+        padding: 0 10px;
+    }
+
+    .fs-time {
+        font-size: 11px;
     }
 
     #fs-controls input[data-act="vol"] {
@@ -1327,20 +1422,13 @@ body.grid-fs .navbar {
     }
 }
 
-/* HP kecil: control bar fullscreen tidak boleh meluap — volume menyatu
-   ke tombol mute, celah dirapatkan */
 @media (max-width: 480px) {
-    #fs-controls {
-        gap: 6px;
-        padding: 8px 10px;
+    .fs-row {
+        gap: 0;
     }
 
-    #fs-controls input[data-act="vol"] {
+    .fs-time {
         display: none;
-    }
-
-    #fs-controls input[data-act="seek"] {
-        width: 30vw;
     }
 }
 
@@ -1348,7 +1436,8 @@ body.grid-fs .navbar {
 .camera-grid,
 .camera-cell,
 .navbar-inner,
-#fs-controls {
+#fs-controls,
+.fs-nav {
     touch-action: manipulation;
 }
 
@@ -1357,7 +1446,8 @@ body.grid-fs .navbar {
    tidak pernah disembunyikan di perangkat sentuh. */
 
 @media (prefers-reduced-motion: reduce) {
-    #fs-controls {
+    #fs-controls,
+    .camera-cell.fullscreen .fullscreen-close {
         transition: none;
     }
 }
