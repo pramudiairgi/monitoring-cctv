@@ -48,6 +48,11 @@ function loadCategorySet() {
     }
     return new Set(allCategorySlugs());
 }
+function persistCategorySet() {
+    try {
+        localStorage.setItem(CATEGORY_SET_KEY, JSON.stringify([...selectedCategories]));
+    } catch {}
+}
 let selectedCategories = loadCategorySet();
 let selectedStatus = "online";
 let fullscreenCameraId = null;
@@ -230,7 +235,10 @@ function updateBadge(cell, status) {
     const badge = cell.querySelector(".status-badge");
     if (badge) {
         badge.className = `status-badge ${status}`;
-        badge.textContent = `${displayName} - ${status}`;
+        const badgeName = badge.querySelector(".badge-name");
+        if (badgeName) badgeName.textContent = displayName;
+        const badgeStatus = badge.querySelector(".badge-status");
+        if (badgeStatus) badgeStatus.textContent = ` - ${status}`;
     }
     cell.setAttribute("aria-label", `${displayName} - ${status}`);
 }
@@ -239,14 +247,17 @@ function cameraPriority(c) {
     return c.status === "online" ? 0 : 1;
 }
 
+function touchLandscapeDock() {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    return vw <= 1400 && vw > vh && window.matchMedia("(hover: none)").matches;
+}
+
 function getMaxAutoPlayRaw() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    return vw > 768
-        ? MAX_AUTO_PLAY_DESKTOP
-        : vw > vh
-          ? MAX_AUTO_PLAY_MOBILE_LANDSCAPE
-          : MAX_AUTO_PLAY_MOBILE_PORTRAIT;
+    if (vw > 768 && !touchLandscapeDock()) return MAX_AUTO_PLAY_DESKTOP;
+    return vw > vh ? MAX_AUTO_PLAY_MOBILE_LANDSCAPE : MAX_AUTO_PLAY_MOBILE_PORTRAIT;
 }
 
 // Effective cap from admin setting per device. Admin 0 = unlimited.
@@ -468,7 +479,7 @@ function createCameraCell(camera) {
         <button class="cell-pause-btn" style="display:none" aria-label="Berhenti memutar"></button>
         <button class="cell-speak-toggle" style="display:none" aria-label="Nyalakan suara"></button>
         <div class="camera-placeholder-info">
-          <span class="status-badge ${escapeHtml(camera.status || "offline")}">${escapeHtml(camera.name || "")} - ${escapeHtml(camera.status || "")}</span>
+          <span class="status-badge ${escapeHtml(camera.status || "offline")}"><span class="badge-name">${escapeHtml(camera.name || "")}</span><span class="badge-status"> - ${escapeHtml(camera.status || "")}</span></span>
         </div>
         <button class="fullscreen-close" aria-label="Exit fullscreen">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -669,7 +680,7 @@ function applyFilters() {
     const shortLandscape = vh <= 500 && vw > vh;
     grid.classList.toggle("scroll-feed", shortLandscape);
     const targetAspect = 16 / 9;
-    const isMobile = vw <= 768;
+    const isMobile = vw <= 768 || touchLandscapeDock();
     const isLandscape = vw > vh;
     let maxCols;
     if (isMobile && isLandscape) {
@@ -720,8 +731,16 @@ function applyFilters() {
     grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
     if (shortLandscape) {
-        grid.style.gridTemplateColumns = `repeat(${vw < 600 ? 1 : 2}, 1fr)`;
-        grid.style.gridTemplateRows = "";
+        const feedCols = vw < 600 ? 1 : 2;
+        grid.style.gridTemplateColumns = `repeat(${feedCols}, 1fr)`;
+        const feedGap = parseFloat(getComputedStyle(grid).rowGap) || 0;
+        const feedW = grid.clientWidth || vw;
+        const feedRowH = Math.max(
+            120,
+            Math.round((((feedW - feedGap * (feedCols - 1)) / feedCols) * 9) / 16),
+        );
+        const feedRows = Math.max(1, Math.ceil(visibleCount / feedCols));
+        grid.style.gridTemplateRows = `repeat(${feedRows}, ${feedRowH}px)`;
     }
 
     let emptyMsg = grid.querySelector(".empty-message");
@@ -1212,7 +1231,6 @@ function switchFullscreen(newCameraId) {
 
     ensureTempFullscreenStream(newCameraId);
     bindFsBar(newCameraId);
-    closeMobileNav();
 
     streamManagers.forEach((mgr, id) => {
         if (id !== newCameraId) mgr.suspend();
@@ -1233,7 +1251,6 @@ function enterFullscreen(cameraId) {
     suspendOtherStreams(cameraId);
     ensureTempFullscreenStream(cameraId);
     bindFsBar(cameraId);
-    closeMobileNav();
     clearTimeout(navbarTimeout);
     navbar.classList.add("hidden");
     const camera = camerasMap.get(cameraId);
@@ -1266,7 +1283,6 @@ function enterGridFullscreen() {
     gridFullscreen = true;
     grid.classList.add("grid-fullscreen");
     document.body.classList.add("grid-fs");
-    closeMobileNav();
     showNavbar();
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen?.()?.catch(() => {});
@@ -1300,7 +1316,6 @@ function handleFullscreenChange() {
         suspendOtherStreams(id);
         ensureTempFullscreenStream(id);
         bindFsBar(id);
-        closeMobileNav();
         const camera = camerasMap.get(id);
         const displayName = camera?.name || "";
         announce(`${displayName} - fullscreen view`);
@@ -1323,12 +1338,6 @@ document.addEventListener("fullscreenchange", handleFullscreenChange);
 document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
 
 function scheduleNavbarHide() {
-    if (
-        fullscreenCameraId === null &&
-        !gridFullscreen &&
-        (window.innerWidth <= 1100 || window.matchMedia("(hover: none)").matches)
-    )
-        return;
     clearTimeout(navbarTimeout);
     const delay =
         fullscreenCameraId !== null
@@ -1759,6 +1768,257 @@ function initFilterSheet() {
         closeSheet();
         document.getElementById("select-btn")?.click();
     });
+
+    const CHIP_OFF = ["chip-off"];
+    const CHIP_ON = ["chip-on"];
+
+    function toTitleCase(s) {
+        return String(s)
+            .toLowerCase()
+            .split(" ")
+            .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+            .join(" ");
+    }
+
+    function syncPanelChips() {
+        document.querySelectorAll('[data-chip-group="status"] .chip-m').forEach((b) => {
+            const on = (b.dataset.value || "") === (selectedStatus || "");
+            b.classList.remove(...(on ? CHIP_OFF : CHIP_ON));
+            b.classList.add(...(on ? CHIP_ON : CHIP_OFF));
+        });
+        const allSlugs = allCategorySlugs();
+        const effectiveCats =
+            selectedCategories.size === 0 ? new Set(allSlugs) : selectedCategories;
+        const allOn = allSlugs.length > 0 && allSlugs.every((s) => effectiveCats.has(s));
+        document.querySelectorAll('[data-chip-group="category"] .chip-m').forEach((b) => {
+            const v = b.dataset.value || "";
+            const on = v === "" ? allOn : effectiveCats.has(v);
+            b.classList.remove(...(on ? CHIP_OFF : CHIP_ON));
+            b.classList.add(...(on ? CHIP_ON : CHIP_OFF));
+        });
+    }
+
+    document.querySelectorAll("[data-chip-group] .chip-m").forEach((b) => {
+        b.addEventListener("click", () => {
+            const group = b.closest("[data-chip-group]").dataset.chipGroup;
+            const v = b.dataset.value || "";
+            if (group === "status") {
+                selectedStatus = v;
+                if (statusSelect) statusSelect.value = v;
+            } else if (v === "") {
+                selectedCategories = new Set();
+                persistCategorySet();
+                syncCategoryDropdowns();
+            } else {
+                const effective =
+                    selectedCategories.size === 0
+                        ? new Set(allCategorySlugs())
+                        : new Set(selectedCategories);
+                if (effective.has(v)) {
+                    effective.delete(v);
+                } else {
+                    effective.add(v);
+                }
+                selectedCategories = effective;
+                persistCategorySet();
+                syncCategoryDropdowns();
+            }
+            applyFilters();
+            syncPanelChips();
+        });
+    });
+
+    function renderPanelCameraList() {
+        const list = document.getElementById("panel-camera-list");
+        if (!list) return;
+        list.innerHTML = "";
+        cameras
+            .filter((c) => c.status === "online")
+            .forEach((c) => {
+                const selected = cameraSelection === null || cameraSelection.has(c.id);
+                const li = document.createElement("li");
+                li.className = "panel-camera-item";
+                const name = document.createElement("span");
+                name.className = "truncate pr-3";
+                name.textContent = toTitleCase(c.name);
+                const toggle = document.createElement("button");
+                toggle.type = "button";
+                toggle.className = "panel-toggle";
+                toggle.setAttribute("role", "switch");
+                toggle.setAttribute("aria-checked", String(selected));
+                toggle.setAttribute("aria-label", "Tampilkan " + c.name);
+                toggle.addEventListener("click", () => {
+                    if (cameraSelection === null) {
+                        cameraSelection = new Set(cameras.map((x) => x.id));
+                    }
+                    const on = toggle.getAttribute("aria-checked") !== "true";
+                    if (on) {
+                        cameraSelection.add(c.id);
+                    } else {
+                        cameraSelection.delete(c.id);
+                    }
+                    saveSelection();
+                    applyFilters();
+                    toggle.setAttribute("aria-checked", String(on));
+                });
+                li.appendChild(name);
+                li.appendChild(toggle);
+                list.appendChild(li);
+            });
+    }
+
+    function valleyPathFor(w, h, r, hw, hh) {
+        const cx = w / 2;
+        const sx = hw / 56;
+        const sy = hh / 28;
+        const X = (n) => Math.round(n * sx * 100) / 100;
+        const Y = (n) => Math.round(n * sy * 100) / 100;
+        const f = (n) => Math.round(n * 100) / 100;
+        return (
+            `M${f(r)},0 H${f(w - r)} Q${f(w)},0 ${f(w)},${f(r)} ` +
+            `V${f(h)} H${f(cx + hw)} ` +
+            `C${f(cx + X(43))},${f(h)} ${f(cx + X(36))},${f(h)} ${f(cx + X(30))},${f(h - Y(9))} ` +
+            `C${f(cx + X(23))},${f(h - Y(19))} ${f(cx + X(15))},${f(h - Y(28))} ${f(cx)},${f(h - Y(28))} ` +
+            `C${f(cx - X(15))},${f(h - Y(28))} ${f(cx - X(23))},${f(h - Y(19))} ${f(cx - X(30))},${f(h - Y(9))} ` +
+            `C${f(cx - X(36))},${f(h)} ${f(cx - X(43))},${f(h)} ${f(cx - hw)},${f(h)} ` +
+            `H${f(r)} Q0,${f(h)} 0,${f(h - r)} V${f(r)} Q0,0 ${f(r)},0 Z`
+        );
+    }
+
+    function layoutValleys() {
+        const hillEl = document.querySelector(".dock-hill");
+        const hillHW = hillEl && hillEl.offsetWidth ? Math.round(hillEl.offsetWidth / 2) : 72;
+        const hillHH =
+            hillEl && hillEl.offsetHeight
+                ? Math.max(16, Math.round((hillEl.offsetHeight * 6) / 7))
+                : 24;
+        const jobs = [
+            ["filter-sheet", "valleyPath", 32, hillHW, hillHH],
+            ["shortcuts-popup", "shortcutsPath", 24, hillHW, hillHH],
+            ["camera-popup", "cameraPath", 24, hillHW, hillHH],
+        ];
+        jobs.forEach(([elId, pathId, r, hw, hh]) => {
+            const el = document.getElementById(elId);
+            const path = document.getElementById(pathId);
+            if (!el || !path) return;
+            const w = el.offsetWidth;
+            const h = el.offsetHeight;
+            if (w && h) path.setAttribute("d", valleyPathFor(w, h, r, hw, hh));
+        });
+    }
+
+    const searchPopup = document.getElementById("search-popup");
+    searchPopup?.addEventListener("input", function () {
+        const mainSearch = document.getElementById("search");
+        if (mainSearch && mainSearch.value !== this.value) {
+            mainSearch.value = this.value;
+            mainSearch.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+    });
+
+    const dockBtn = document.getElementById("dock-menu-btn");
+    function syncDockBtn() {
+        const open = !!sheet?.classList.contains("open");
+        dockBtn?.setAttribute("aria-expanded", String(open));
+        dockBtn?.setAttribute("aria-label", open ? "Tutup menu" : "Buka menu");
+        dockBtn?.classList.toggle("active", open);
+    }
+
+    const shortcutsPopup = document.getElementById("shortcuts-popup");
+    const cameraPopup = document.getElementById("camera-popup");
+    let isShortcutsOpen = false;
+    let isCameraOpen = false;
+
+    function setPopup(el, open) {
+        if (!el) return;
+        el.classList.toggle("open", open);
+    }
+
+    function replayStagger() {
+        const rows = document.querySelectorAll("#panel-camera-list li");
+        rows.forEach((li, i) => {
+            li.classList.remove("in");
+            li.style.transitionDelay = Math.min(i * 40, 320) + "ms";
+        });
+        requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+                rows.forEach((li) => li.classList.add("in"));
+            }),
+        );
+    }
+
+    function setShortcuts(open) {
+        isShortcutsOpen = open;
+        setPopup(shortcutsPopup, open);
+        if (open) {
+            if (sheet?.classList.contains("open")) closeSheet();
+            if (isCameraOpen) setCamera(false);
+        }
+        layoutValleys();
+    }
+
+    function setCamera(open) {
+        isCameraOpen = open;
+        setPopup(cameraPopup, open);
+        if (open) {
+            if (sheet?.classList.contains("open")) closeSheet();
+            if (isShortcutsOpen) setShortcuts(false);
+            renderPanelCameraList();
+            replayStagger();
+        }
+        layoutValleys();
+    }
+
+    const _openSheet = openSheet;
+    openSheet = function () {
+        syncCategoryDropdowns();
+        if (statusSelect) statusSelect.value = selectedStatus;
+        syncPanelChips();
+        _openSheet();
+        syncDockBtn();
+        if (isShortcutsOpen) setShortcuts(false);
+        if (isCameraOpen) setCamera(false);
+        layoutValleys();
+    };
+
+    const _closeSheet = closeSheet;
+    closeSheet = function () {
+        _closeSheet();
+        syncDockBtn();
+    };
+
+    dockBtn?.addEventListener("click", function () {
+        if (sheet?.classList.contains("open")) {
+            closeSheet();
+        } else {
+            openSheet();
+        }
+    });
+
+    document.getElementById("dock-camera-btn")?.addEventListener("click", function () {
+        setCamera(!isCameraOpen);
+    });
+
+    document.getElementById("dock-info-btn")?.addEventListener("click", function () {
+        setShortcuts(!isShortcutsOpen);
+    });
+
+    document.getElementById("shortcuts-close")?.addEventListener("click", function () {
+        setShortcuts(false);
+    });
+
+    document.getElementById("camera-popup-close")?.addEventListener("click", function () {
+        setCamera(false);
+    });
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape") return;
+        if (sheet?.classList.contains("open")) closeSheet();
+        if (isShortcutsOpen) setShortcuts(false);
+        if (isCameraOpen) setCamera(false);
+    });
+
+    window.addEventListener("resize", layoutValleys);
 }
 
 navbar?.addEventListener("mouseenter", showNavbar);
@@ -1895,6 +2155,7 @@ function initPage() {
     initInfoModal();
     initObserver();
     initPatrolToast();
+    applyFilters();
     initStaggeredBurst();
     initFsBar();
     showNavbar();
@@ -1903,26 +2164,3 @@ function initPage() {
 
 initPage();
 
-const navToggle = document.getElementById("nav-toggle");
-function closeMobileNav() {
-    navbar.classList.remove("nav-open");
-    if (navToggle) {
-        navToggle.classList.remove("open");
-        navToggle.setAttribute("aria-expanded", "false");
-        navToggle.setAttribute("aria-label", "Tampilkan navigasi filter");
-    }
-}
-navToggle?.addEventListener("click", () => {
-    const open = navbar.classList.toggle("nav-open");
-    navToggle.classList.toggle("open", open);
-    navToggle.setAttribute("aria-expanded", open ? "true" : "false");
-    navToggle.setAttribute(
-        "aria-label",
-        open ? "Sembunyikan navigasi filter" : "Tampilkan navigasi filter",
-    );
-});
-document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && navbar.classList.contains("nav-open")) {
-        closeMobileNav();
-    }
-});

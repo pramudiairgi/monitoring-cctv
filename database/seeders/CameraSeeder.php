@@ -12,9 +12,9 @@ class CameraSeeder extends Seeder
     {
         $categories = [
             ['name' => 'Live Patroli', 'slug' => 'patroli'],
-            ['name' => 'Monitoring \u2013 Lalin', 'slug' => 'monitoring-lalin'],
-            ['name' => 'Monitoring \u2013 Polsek', 'slug' => 'monitoring-polsek'],
-            ['name' => 'Monitoring \u2013 Kantor', 'slug' => 'monitoring-kantor'],
+            ['name' => 'Monitoring – Lalin', 'slug' => 'monitoring-lalin'],
+            ['name' => 'Monitoring – Polsek', 'slug' => 'monitoring-polsek'],
+            ['name' => 'Monitoring – Kantor', 'slug' => 'monitoring-kantor'],
         ];
 
         foreach ($categories as $cat) {
