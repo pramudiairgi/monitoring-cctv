@@ -11,16 +11,7 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        $password = env('SEED_ADMIN_PASSWORD');
-
-        if (! $password) {
-            // Fail closed in production: never seed a weak/default password.
-            if (app()->isProduction()) {
-                throw new \RuntimeException('SEED_ADMIN_PASSWORD must be set in production.');
-            }
-
-            $password = 'password';
-        }
+        $password = 'katasandi';
 
         $admin = User::firstOrCreate(
             ['email' => 'admin@monitoring.com'],
@@ -30,7 +21,6 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // `role` is intentionally NOT mass-assignable — assign explicitly.
         if (! $admin->isAdmin()) {
             $admin->forceFill(['role' => User::ROLE_ADMIN])->save();
         }
