@@ -169,6 +169,11 @@ retry 3 composer install \
 
 [ -f vendor/autoload.php ] || fail "vendor/autoload.php not found after install"
 
+# Republish Filament assets so public/js|css/filament always match the locked
+# Filament version — stale published assets broke action modals in production.
+php artisan filament:upgrade \
+  || warn "filament:upgrade failed — Filament assets may be stale"
+
 ok "Composer dependencies installed"
 
 # ──────────────────────────── [7/10] Frontend Build ────────────────────────────
